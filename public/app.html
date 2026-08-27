@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Controle de M.O.</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="sb-config.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     body { font-family: 'Inter', sans-serif; }
@@ -296,7 +298,7 @@
 const money = v => v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const KEY = "engecap_mo_v2";
 const PRECOS_EXTRA = { integracao: 8.90, vtSabado: 18.90 };
-const FUNCIONARIOS = [
+let FUNCIONARIOS = [
   // Carpinteiros
   { chapa: "18432", nome: "Carlos Alberto Silva", funcao: "Carpinteiro" },
   { chapa: "18433", nome: "Paulo Henrique Costa", funcao: "Carpinteiro" },
@@ -322,6 +324,18 @@ const FUNCIONARIOS = [
   { chapa: "17557", nome: "Rafael Augusto Pinto", funcao: "Servente" },
   { chapa: "17558", nome: "Bruno César Almeida", funcao: "Servente" }
 ];
+(function(){
+  try {
+    var raw = localStorage.getItem("engecap_mo_funcionarios");
+    if(raw){
+      var arr = JSON.parse(raw);
+      if(Array.isArray(arr) && arr.length) FUNCIONARIOS = arr;
+    }
+  } catch(e){}
+})();
+function saveFuncionarios(){
+  localStorage.setItem("engecap_mo_funcionarios", JSON.stringify(FUNCIONARIOS));
+}
 
 const seed = {
   pais: [
@@ -374,8 +388,96 @@ function loadStore(){
     dados: {}
   };
 }
-function saveStore(){ localStorage.setItem(STORE_KEY, JSON.stringify(store)); }
+function saveStore(){
+  localStorage.setItem(STORE_KEY, JSON.stringify(store));
+  if(sbOn()) cloudPushStore().catch(function(e){ console.warn(e); });
+}
 let store = loadStore();
+
+let sb = null;
+function sbOn(){
+  return !!(sb && window.SB_ANON && window.SB_ANON.indexOf("COLE_")!==0);
+}
+function initSb(){
+  try{
+    if(window.supabase && window.SB_URL && window.SB_ANON && window.SB_ANON.indexOf("COLE_")!==0){
+      sb = window.supabase.createClient(window.SB_URL, window.SB_ANON);
+    }
+  }catch(e){ console.warn(e); }
+}
+initSb();
+
+async function cloudLogin(user, senha){
+  if(!sbOn()) return null;
+  var mail = user.indexOf("@")>=0 ? user : user+"@engecap.com";
+  var r = await sb.auth.signInWithPassword({ email: mail, password: senha });
+  if(r.error) throw new Error(r.error.message);
+  var uid = r.data.user.id;
+  var pr = await sb.from("profiles").select("role,email").eq("id", uid).single();
+  return { email: r.data.user.email, role: (pr.data && pr.data.role) || "apontador", user: mail.split("@")[0] };
+}
+async function cloudLoadFuncionarios(){
+  if(!sbOn()) return;
+  var r = await sb.from("funcionarios").select("chapa,nome,funcao").eq("active", true);
+  if(r.error) { console.warn(r.error); return; }
+  if(r.data && r.data.length) FUNCIONARIOS = r.data;
+}
+async function cloudSaveFuncionarios(rows){
+  if(!sbOn() || !rows.length) return;
+  var payload = rows.map(function(f){ return { chapa:String(f.chapa), nome:f.nome, funcao:f.funcao, active:true }; });
+  var r = await sb.from("funcionarios").upsert(payload, { onConflict: "chapa" });
+  if(r.error) throw new Error(r.error.message);
+}
+async function cloudPullStore(){
+  if(!sbOn()) return;
+  var obras = await sb.from("mo_obras").select("*").eq("active", true);
+  if(obras.error) throw new Error(obras.error.message);
+  store.obras = (obras.data||[]).map(function(o){
+    return {id:o.id, codigo:o.codigo||"", nome:o.nome, cliente:o.cliente||"", tipo:o.tipo||"Estrutura"};
+  });
+  var cads = await sb.from("mo_cadastro").select("*");
+  store.cadastro = {};
+  (cads.data||[]).forEach(function(c){
+    store.cadastro[c.obra_id] = { pais:c.pais||[], filhos:c.filhos||[] };
+  });
+  var pers = await sb.from("mo_periodo").select("*");
+  store.dados = {};
+  (pers.data||[]).forEach(function(c){
+    store.dados[c.obra_id+"|"+c.periodo] = { medicoes:c.medicoes||[], libs:c.libs||{} };
+  });
+}
+async function cloudPushStore(){
+  if(!sbOn()) return;
+  var obras = store.obras||[];
+  for(var i=0;i<obras.length;i++){
+    var o = obras[i];
+    var r = await sb.from("mo_obras").upsert({
+      id:o.id, codigo:o.codigo||"", nome:o.nome, cliente:o.cliente||"", tipo:o.tipo||"Estrutura", active:true
+    });
+    if(r.error) console.warn(r.error);
+  }
+  Object.keys(store.cadastro||{}).forEach(function(){});
+  var ids = Object.keys(store.cadastro||{});
+  for(var j=0;j<ids.length;j++){
+    var id = ids[j];
+    var cad = store.cadastro[id];
+    var r2 = await sb.from("mo_cadastro").upsert({
+      obra_id:id, pais:cad.pais||[], filhos:cad.filhos||[]
+    });
+    if(r2.error) console.warn(r2.error);
+  }
+  var ks = Object.keys(store.dados||{});
+  for(var k=0;k<ks.length;k++){
+    var key = ks[k];
+    var parts = key.split("|");
+    var d = store.dados[key];
+    var r3 = await sb.from("mo_periodo").upsert({
+      obra_id:parts[0], periodo:parts[1], medicoes:d.medicoes||[], libs:d.libs||{}
+    });
+    if(r3.error) console.warn(r3.error);
+  }
+}
+
 
 let db = load();
 let paiSel = db.pais[0] ? db.pais[0].id : null;
@@ -420,21 +522,36 @@ function aplicarAcesso(){
   if(rst) rst.classList.toggle("hidden", sessao.role==="apontador");
 }
 
-function fazerLogin(){
+async function fazerLogin(){
   var email = (document.getElementById("loginEmail").value||"").trim();
   var senha = document.getElementById("loginSenha").value||"";
   var raw = (email||"").trim().toLowerCase();
   var user = raw.indexOf("@")>=0 ? raw.split("@")[0] : raw;
-  var u = (typeof USERS_DB!=="undefined"?USERS_DB:USERS).find(function(x){
-    return x.user===user && x.senha===senha && x.active!==false;
-  });
   var box = document.getElementById("loginErro");
+  box.classList.add("hidden");
+  var u = null;
+  if(sbOn()){
+    try {
+      u = await cloudLogin(user, senha);
+      await cloudLoadFuncionarios();
+      await cloudPullStore();
+    } catch(e){
+      box.textContent = "Supabase: "+e.message;
+      box.classList.remove("hidden");
+      return;
+    }
+  } else {
+    u = (typeof USERS_DB!=="undefined"?USERS_DB:USERS).find(function(x){
+      return x.user===user && x.senha===senha && x.active!==false;
+    });
+    if(u && !u.email) u.email = u.user+"@engecap.com";
+  }
   if(!u){
     box.textContent = "Usuário ou senha inválidos.";
     box.classList.remove("hidden");
     return;
   }
-  sessao = { email:u.email, role:u.role, user:u.user||u.email.split("@")[0] };
+  sessao = { email:u.email|| (user+"@engecap.com"), role:u.role, user:u.user||user };
   localStorage.setItem("engecap_mo_sessao", JSON.stringify(sessao));
   if(typeof addLog==="function") addLog("Login "+sessao.user+" ("+sessao.role+")");
   aplicarAcesso();
@@ -654,7 +771,7 @@ function excluirLib(filhoId, libId){
 
 function buscarFuncionario(){
   var chapa = (document.getElementById("funcChapa").value||"").trim();
-  var f = FUNCIONARIOS.find(function(x){ return x.chapa===chapa; });
+  var f = FUNCIONARIOS.find(function(x){ return String(x.chapa)===String(chapa); });
   funcionarioAtual = f || null;
   document.getElementById("funcNome").value = f ? f.nome : "";
   document.getElementById("funcFuncao").value = f ? f.funcao : "";
@@ -1386,11 +1503,14 @@ function subirCsv(ev){
       n++;
     });
     extra.forEach(function(f){
-      var i = FUNCIONARIOS.findIndex(function(x){ return x.chapa===f.chapa; });
+      f.chapa = String(f.chapa).trim();
+      var i = FUNCIONARIOS.findIndex(function(x){ return String(x.chapa)===f.chapa; });
       if(i>=0) FUNCIONARIOS[i] = f; else FUNCIONARIOS.push(f);
     });
-    addLog("CSV "+file.name+" · "+n+" linha(s)");
-    document.getElementById("csvMsg").textContent = n+" funcionários carregados.";
+    saveFuncionarios();
+    if(sbOn()) cloudSaveFuncionarios(extra).catch(function(e){ alert("Nuvem: "+e.message); });
+    addLog("CSV "+file.name+" · "+n+" linha(s) · total "+FUNCIONARIOS.length);
+    document.getElementById("csvMsg").textContent = n+" linhas no arquivo · "+FUNCIONARIOS.length+" funcionários gravados. Vale para todos os usuários neste navegador.";
     renderAdmin();
   };
   reader.readAsText(file);
