@@ -16,16 +16,16 @@
       <p class="text-xs uppercase tracking-wide text-slate-400 font-semibold">Engecap · mesmo acesso do Diário</p>
       <h1 class="text-xl font-bold mt-1 mb-1">Controle de M.O.</h1>
       <p class="text-sm text-slate-500 mb-4">Entra com o mesmo perfil: admin, engenheiro ou apontador.</p>
-      <label class="text-xs text-slate-500">E-mail</label>
-      <input id="loginEmail" class="w-full border rounded-lg px-3 py-2 text-sm mb-3" placeholder="engenheiro@obra.local" />
+      <label class="text-xs text-slate-500">Usuário</label>
+      <input id="loginEmail" class="w-full border rounded-lg px-3 py-2 text-sm mb-3" placeholder="admin" />
       <label class="text-xs text-slate-500">Senha</label>
       <input id="loginSenha" type="password" class="w-full border rounded-lg px-3 py-2 text-sm mb-3" placeholder="123456" />
       <button onclick="fazerLogin()" class="w-full bg-slate-800 text-white rounded-lg py-2.5 text-sm font-medium">Entrar</button>
       <p id="loginErro" class="hidden text-sm text-red-600 mt-3"></p>
       <p class="text-[11px] text-slate-400 mt-4 leading-relaxed">
-        admin@obra.local / admin123<br>
-        engenheiro@obra.local / 123456<br>
-        apontador@obra.local / 123456
+        admin / admin123<br>
+        engenheiro / 123456<br>
+        apontador / 123456
       </p>
     </div>
   </div>
@@ -51,7 +51,15 @@
       </div>
     </div>
 
-    <div id="viewCadastro">
+    <div id="viewHome" class="hidden">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="font-semibold">Minhas obras</h2>
+        <button id="btnNovaObra" onclick="novaObra()" class="bg-blue-600 text-white text-sm px-3 py-2 rounded-lg">+ Nova obra</button>
+      </div>
+      <div id="listaObras" class="grid md:grid-cols-3 gap-4"></div>
+    </div>
+
+    <div id="viewCadastro" class="hidden">
       <section class="bg-white rounded-2xl border p-5 mb-5">
         <h2 class="font-semibold mb-3">1. Dados da obra</h2>
         <div class="grid md:grid-cols-4 gap-3 text-sm">
@@ -351,9 +359,11 @@ function aplicarAcesso(){
 function fazerLogin(){
   var email = (document.getElementById("loginEmail").value||"").trim();
   var senha = document.getElementById("loginSenha").value||"";
-  var raw = (email||"").trim();
-  var mail = raw.indexOf("@")>=0 ? raw : raw+"@engecap.com";
-  var u = USERS.find(function(x){ return (x.email===mail || x.user===raw) && x.senha===senha; });
+  var raw = (email||"").trim().toLowerCase();
+  var user = raw.indexOf("@")>=0 ? raw.split("@")[0] : raw;
+  var u = USERS.find(function(x){
+    return x.user===user && x.senha===senha;
+  });
   var box = document.getElementById("loginErro");
   if(!u){
     box.textContent = "Usuário ou senha inválidos.";
@@ -383,12 +393,16 @@ function ir(v){
     return;
   }
   view = v;
-  document.getElementById("viewHome").classList.toggle("hidden", v!=="home");
-  document.getElementById("viewCadastro").classList.toggle("hidden", v!=="cadastro");
-  document.getElementById("viewLiberacao").classList.toggle("hidden", v!=="liberacao");
-  document.getElementById("viewLancamento").classList.toggle("hidden", v!=="lancamento");
-  document.getElementById("viewFechar").classList.toggle("hidden", v!=="fechar");
-  document.getElementById("viewSaldo").classList.toggle("hidden", v!=="saldo");
+  ["home","cadastro","liberacao","lancamento","fechar","saldo"].forEach(function(name){
+    var el = document.getElementById("view"+name.charAt(0).toUpperCase()+name.slice(1));
+    if(name==="fechar") el = document.getElementById("viewFechar");
+    if(name==="lancamento") el = document.getElementById("viewLancamento");
+    if(name==="liberacao") el = document.getElementById("viewLiberacao");
+    if(name==="cadastro") el = document.getElementById("viewCadastro");
+    if(name==="home") el = document.getElementById("viewHome");
+    if(name==="saldo") el = document.getElementById("viewSaldo");
+    if(el) el.classList.toggle("hidden", v!==name);
+  });
   var titles = {home:"Obras", cadastro:"Cadastro de obra", liberacao:"Liberação de fase", lancamento:"Lançar medição", fechar:"Resumo de medições", saldo:"Controle de saldo"};
   document.getElementById("titulo").textContent = titles[v] || v;
   var map = {home:"navHome", cadastro:"navCad", liberacao:"navLib", lancamento:"navLan", fechar:"navFec", saldo:"navSal"};
@@ -1064,6 +1078,7 @@ function renderHeader(){
 
 function renderHome(){
   var box = document.getElementById("listaObras");
+  if(!box) return;
   var obras = store.obras||[];
   if(!obras.length){
     box.innerHTML = '<div class="col-span-3 bg-white rounded-2xl border p-6 text-sm text-slate-500">Nenhuma obra. Engenheiro clica em + Nova obra.</div>';
