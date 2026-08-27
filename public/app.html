@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Controle de M.O.</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+  </style>
+</head>
+<body class="bg-[#eef1f6] min-h-screen text-slate-800">
+  <div id="telaLogin" class="fixed inset-0 z-50 bg-[#eef1f6] flex items-center justify-content-center p-4" style="display:flex;align-items:center;justify-content:center">
+    <div class="w-full max-w-md bg-white rounded-2xl border-2 border-slate-200 p-6 shadow-sm">
+      <p class="text-xs uppercase tracking-wide text-slate-400 font-semibold">Engecap · mesmo acesso do Diário</p>
+      <h1 class="text-xl font-bold mt-1 mb-1">Controle de M.O.</h1>
+      <p class="text-sm text-slate-500 mb-4">Entra com o mesmo perfil: admin, engenheiro ou apontador.</p>
+      <label class="text-xs text-slate-500">E-mail</label>
+      <input id="loginEmail" class="w-full border rounded-lg px-3 py-2 text-sm mb-3" placeholder="engenheiro@obra.local" />
+      <label class="text-xs text-slate-500">Senha</label>
+      <input id="loginSenha" type="password" class="w-full border rounded-lg px-3 py-2 text-sm mb-3" placeholder="123456" />
+      <button onclick="fazerLogin()" class="w-full bg-slate-800 text-white rounded-lg py-2.5 text-sm font-medium">Entrar</button>
+      <p id="loginErro" class="hidden text-sm text-red-600 mt-3"></p>
+      <p class="text-[11px] text-slate-400 mt-4 leading-relaxed">
+        admin@obra.local / admin123<br>
+        engenheiro@obra.local / 123456<br>
+        apontador@obra.local / 123456
+      </p>
+    </div>
+  </div>
+
+  <div class="max-w-6xl mx-auto py-6 px-4">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+      <div>
+        <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide">329 · Arizona · EVEN</p>
+        <h1 id="titulo" class="text-2xl font-bold">Cadastro de obra</h1>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <button onclick="ir('cadastro')" id="navCad" class="px-3 py-2 rounded-lg text-sm font-medium bg-white border">Cadastro</button>
+        <button onclick="ir('liberacao')" id="navLib" class="px-3 py-2 rounded-lg text-sm font-medium bg-white border">Liberação</button>
+        <button onclick="ir('lancamento')" id="navLan" class="px-3 py-2 rounded-lg text-sm font-medium bg-white border">Lançar medição</button>
+        <button onclick="ir('fechar')" id="navFec" class="px-3 py-2 rounded-lg text-sm font-medium bg-white border">Resumo de medições</button>
+        <button onclick="ir('saldo')" id="navSal" class="px-3 py-2 rounded-lg text-sm font-medium bg-white border">Controle de saldo</button>
+        <button onclick="resetar()" class="px-3 py-2 rounded-lg text-sm border text-slate-500">Reset dados</button>
+        <span id="userChip" class="hidden text-xs px-3 py-2 rounded-lg bg-slate-800 text-white"></span>
+        <button onclick="sair()" class="hidden px-3 py-2 rounded-lg text-sm border" id="btnSair">Sair</button>
+      </div>
+    </div>
+
+    <div id="viewCadastro">
+      <section class="bg-white rounded-2xl border p-5 mb-5">
+        <h2 class="font-semibold mb-3">1. Dados da obra</h2>
+        <div class="grid md:grid-cols-4 gap-3 text-sm">
+          <input class="border rounded-lg px-3 py-2" value="329" />
+          <input class="border rounded-lg px-3 py-2" value="Arizona" />
+          <input class="border rounded-lg px-3 py-2" value="EVEN" />
+          <select class="border rounded-lg px-3 py-2 bg-white"><option>Estrutura</option></select>
+        </div>
+      </section>
+      <div class="grid md:grid-cols-12 gap-5">
+        <section class="md:col-span-4 bg-white rounded-2xl border overflow-hidden">
+          <div class="px-4 py-3 border-b bg-slate-50 font-semibold text-sm">2. Serviços pai</div>
+          <div class="p-3 border-b">
+            <input id="novoPai" placeholder="Nome do serviço pai" class="w-full border rounded-lg px-3 py-2 text-sm mb-2" />
+            <div class="flex gap-2">
+              <button id="btnPai" onclick="salvarPai()" class="flex-1 bg-slate-800 text-white text-sm py-2 rounded-lg">Criar serviço pai</button>
+              <button id="btnCancelarPai" onclick="cancelarEdicaoPai()" class="hidden px-3 text-sm border rounded-lg">Cancelar</button>
+            </div>
+          </div>
+          <div id="listaPais" class="p-2 space-y-1"></div>
+        </section>
+        <section class="md:col-span-8 bg-white rounded-2xl border overflow-hidden">
+          <div class="px-4 py-3 border-b bg-slate-50">
+            <h2 class="font-semibold text-sm">3. Serviços filho</h2>
+            <p id="paiAtual" class="text-xs text-slate-500"></p>
+          </div>
+          <div id="formFilho" class="hidden p-4 border-b">
+            <div class="grid md:grid-cols-3 gap-3 mb-3">
+              <div class="md:col-span-2">
+                <label class="text-xs text-slate-500">Nome do filho</label>
+                <input id="filhoNome" class="w-full border rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label class="text-xs text-slate-500">Unidade</label>
+                <select id="filhoUn" class="w-full border rounded-lg px-3 py-2 text-sm bg-white">
+                  <option>m³</option><option>m²</option><option>un</option><option>kg</option><option>diária</option><option>hora</option><option>hora extra</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-slate-500">Quantidade compartilhada</label>
+                <input id="filhoQtd" type="number" class="w-full border rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <div><label class="text-xs text-slate-500">Carpinteiro R$</label><input id="vuCarp" type="number" step="0.01" class="w-full border rounded-lg px-3 py-2 text-sm" /></div>
+              <div><label class="text-xs text-slate-500">Armador R$</label><input id="vuArm" type="number" step="0.01" class="w-full border rounded-lg px-3 py-2 text-sm" /></div>
+              <div><label class="text-xs text-slate-500">Pedreiro R$</label><input id="vuPed" type="number" step="0.01" class="w-full border rounded-lg px-3 py-2 text-sm" /></div>
+              <div><label class="text-xs text-slate-500">Servente R$</label><input id="vuServ" type="number" step="0.01" class="w-full border rounded-lg px-3 py-2 text-sm" /></div>
+            </div>
+            <div class="flex flex-wrap gap-2 justify-between">
+              <div class="flex gap-2">
+                <select id="copyFrom" class="border rounded-lg px-2 py-2 text-sm bg-white"></select>
+                <button onclick="copiarFilho()" class="text-sm border px-3 py-2 rounded-lg">Copiar filho</button>
+              </div>
+              <div class="flex gap-2">
+                <button id="btnCancelarFilho" onclick="cancelarEdicaoFilho()" class="hidden text-sm border px-3 py-2 rounded-lg">Cancelar</button>
+                <button id="btnFilho" onclick="salvarFilho()" class="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg">Adicionar filho neste pai</button>
+              </div>
+            </div>
+          </div>
+          <div id="listaFilhos" class="p-4"></div>
+        </section>
+      </div>
+      <div class="mt-5 bg-white rounded-2xl border p-4 flex justify-between">
+        <span class="text-sm text-slate-500">Total previsto a pagar</span>
+        <span id="total" class="font-bold text-blue-700">R$ 0,00</span>
+      </div>
+    </div>
+
+    <div id="viewLiberacao" class="hidden">
+      <section class="bg-slate-800 text-white rounded-2xl p-5 mb-5">
+        <h2 class="font-semibold mb-1">Liberação da fase</h2>
+        <p class="text-sm text-slate-300 mb-3">Solta quantidade + identifica o trecho. O apontador só vê o que você liberar.</p>
+        <div class="grid md:grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-slate-300">Período</label>
+            <input id="periodo" value="21/08/2026 a 20/09/2026" class="w-full border-0 rounded-lg px-3 py-2 text-sm text-slate-800" />
+          </div>
+          <div>
+            <label class="text-xs text-slate-300">Observação</label>
+            <input id="obsLib" class="w-full border-0 rounded-lg px-3 py-2 text-sm text-slate-800" />
+          </div>
+        </div>
+      </section>
+      <p class="text-[11px] text-slate-500 mb-3">Cinza = travado · Amarelo = parcial · Verde = liberado</p>
+      <div id="listaLib" class="space-y-8"></div>
+    </div>
+
+    <div id="viewLancamento" class="hidden">
+      <section class="bg-slate-800 text-white rounded-2xl p-5 mb-5">
+        <h2 class="font-semibold mb-1">Lançamento do apontador</h2>
+        <p class="text-sm text-slate-300 mb-4">Chapa puxa nome e função. O saldo é por função.</p>
+        <div class="grid md:grid-cols-3 gap-3">
+          <div>
+            <label class="text-xs text-slate-500">Chapa</label>
+            <input id="funcChapa" placeholder="18432" oninput="buscarFuncionario()" class="w-full border rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Nome</label>
+            <input id="funcNome" readonly class="w-full border rounded-lg px-3 py-2 text-sm bg-slate-50" />
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Função</label>
+            <input id="funcFuncao" readonly class="w-full border rounded-lg px-3 py-2 text-sm bg-slate-50" />
+          </div>
+        </div>
+        <p id="funcStatus" class="text-xs text-slate-300 mt-2">Chapas: 18432-36 carp · 19201-05 arm · 20962-65 e 25711 ped · 17554-58 serv</p>
+        <div class="grid md:grid-cols-2 gap-3 mt-4">
+          <div>
+            <label class="text-xs text-slate-500">Integração / VT (dias)</label>
+            <input id="qtdInt" type="number" min="0" value="0" class="w-full border rounded-lg px-3 py-2 text-sm" />
+            <p class="text-[11px] text-slate-400 mt-1">R$ 8,90 / dia</p>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">VT de sábado (qtde)</label>
+            <input id="qtdVt" type="number" min="0" value="0" class="w-full border rounded-lg px-3 py-2 text-sm" />
+            <p class="text-[11px] text-slate-400 mt-1">R$ 18,90</p>
+          </div>
+        </div>
+      </section>
+      <div id="listaLan" class="space-y-4 mb-6"></div>
+      <section class="bg-white rounded-2xl border-2 border-slate-300 p-5">
+        <h3 class="font-semibold text-sm mb-3">Medições já lançadas</h3>
+        <div id="listaMed" class="text-sm text-slate-500">Nenhuma ainda.</div>
+      </section>
+    </div>
+
+    <div id="viewFechar" class="hidden">
+      <section class="bg-white rounded-2xl border p-5 mb-5">
+        <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+          <div>
+            <h2 class="font-semibold">Resumo de medições</h2>
+            <p class="text-sm text-slate-500">Por função e por funcionário. Clique na linha para abrir os itens.</p>
+          </div>
+          <p class="text-xs text-slate-400">Período 21/08 a 20/09 · coeficientes aproximados</p>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+          <div class="bg-slate-50 rounded-xl p-3">
+            <p class="text-[11px] uppercase tracking-wide text-slate-400">Pessoas</p>
+            <p id="fecQtdFunc" class="text-xl font-bold">0</p>
+          </div>
+          <div class="bg-blue-50 rounded-xl p-3">
+            <p class="text-[11px] uppercase tracking-wide text-blue-400">Salário tarefa</p>
+            <p id="fecTarefa" class="text-xl font-bold text-blue-700">R$ 0,00</p>
+          </div>
+          <div class="bg-emerald-50 rounded-xl p-3">
+            <p class="text-[11px] uppercase tracking-wide text-emerald-500">Prêmio</p>
+            <p id="fecPremio" class="text-xl font-bold text-emerald-700">R$ 0,00</p>
+          </div>
+          <div class="bg-amber-50 rounded-xl p-3">
+            <p class="text-[11px] uppercase tracking-wide text-amber-500">Vale</p>
+            <p id="fecVale" class="text-xl font-bold text-amber-700">R$ 0,00</p>
+          </div>
+          <div class="bg-slate-800 rounded-xl p-3 text-white">
+            <p class="text-[11px] uppercase tracking-wide text-slate-300">Custo M.O.</p>
+            <p id="fecCusto" class="text-xl font-bold">R$ 0,00</p>
+          </div>
+        </div>
+        <div id="fecFiltros" class="flex flex-wrap gap-2 mt-4"></div>
+      </section>
+      <div id="listaFec" class="space-y-8"></div>
+    </div>
+
+    <div id="viewSaldo" class="hidden">
+      <section class="bg-slate-800 text-white rounded-2xl p-5 mb-5">
+        <h2 class="font-semibold mb-1">Controle de saldo</h2>
+        <p class="text-sm text-slate-300">A mesma quantidade vira um teto independente pra cada função.</p>
+      </section>
+      <div id="listaSaldo" class="space-y-8"></div>
+    </div>
+  </div>
+
+<script>
+const money = v => v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const KEY = "engecap_mo_v2";
+const PRECOS_EXTRA = { integracao: 8.90, vtSabado: 18.90 };
+const FUNCIONARIOS = [
+  // Carpinteiros
+  { chapa: "18432", nome: "Carlos Alberto Silva", funcao: "Carpinteiro" },
+  { chapa: "18433", nome: "Paulo Henrique Costa", funcao: "Carpinteiro" },
+  { chapa: "18434", nome: "Rogério Mendes Lima", funcao: "Carpinteiro" },
+  { chapa: "18435", nome: "André Luiz Barbosa", funcao: "Carpinteiro" },
+  { chapa: "18436", nome: "Fábio Cristiano Rocha", funcao: "Carpinteiro" },
+  // Armadores
+  { chapa: "19201", nome: "Marcos Paulo Ferreira", funcao: "Armador" },
+  { chapa: "19202", nome: "Edson Ribeiro Nunes", funcao: "Armador" },
+  { chapa: "19203", nome: "Valdir Aparecido Souza", funcao: "Armador" },
+  { chapa: "19204", nome: "Cláudio Roberto Dias", funcao: "Armador" },
+  { chapa: "19205", nome: "Maurício dos Santos", funcao: "Armador" },
+  // Pedreiros
+  { chapa: "20962", nome: "Raimundo Donato de Aguiar Filho", funcao: "Pedreiro" },
+  { chapa: "25711", nome: "Joao Evangelista Gomes Correa", funcao: "Pedreiro" },
+  { chapa: "20963", nome: "Antônio Carlos Pereira", funcao: "Pedreiro" },
+  { chapa: "20964", nome: "Sebastião Alves Junior", funcao: "Pedreiro" },
+  { chapa: "20965", nome: "Francisco das Chagas", funcao: "Pedreiro" },
+  // Serventes
+  { chapa: "17554", nome: "José Antônio Santos", funcao: "Servente" },
+  { chapa: "17555", nome: "Pedro Oliveira Campos", funcao: "Servente" },
+  { chapa: "17556", nome: "Lucas Gabriel Martins", funcao: "Servente" },
+  { chapa: "17557", nome: "Rafael Augusto Pinto", funcao: "Servente" },
+  { chapa: "17558", nome: "Bruno César Almeida", funcao: "Servente" }
+];
+
+const seed = {
+  pais: [
+    { id: 1, nome: "Forma, Armação e concretagem" },
+    { id: 2, nome: "Proteção periférica" }
+  ],
+  filhos: [
+    { id: 11, paiId: 1, nome: "5º PAVIMENTO", un: "m³", qtd: 360, funcoes: {Carpinteiro:250, Armador:125}, liberacoes: [] },
+    { id: 12, paiId: 1, nome: "6º PAVIMENTO", un: "m³", qtd: 360, funcoes: {Carpinteiro:250, Armador:125}, liberacoes: [] },
+    { id: 13, paiId: 1, nome: "COBERTURA", un: "un", qtd: 250, funcoes: {Carpinteiro:250, Armador:125}, liberacoes: [] },
+    { id: 21, paiId: 2, nome: "TORRE INTEIRA", un: "un", qtd: 7, funcoes: {Carpinteiro:5500}, liberacoes: [] }
+  ],
+  medicoes: []
+};
+
+function load(){
+  try {
+    const raw = localStorage.getItem(KEY);
+    if(!raw) return JSON.parse(JSON.stringify(seed));
+    const data = JSON.parse(raw);
+    data.filhos.forEach(f => { if(!f.liberacoes) f.liberacoes = []; });
+    if(!data.medicoes) data.medicoes = [];
+    return data;
+  } catch(e) {
+    return JSON.parse(JSON.stringify(seed));
+  }
+}
+function save(){ localStorage.setItem(KEY, JSON.stringify(db)); }
+function resetar(){
+  if(!confirm("Zerar os dados de teste?")) return;
+  localStorage.removeItem(KEY);
+  db = JSON.parse(JSON.stringify(seed));
+  paiSel = db.pais[0].id;
+  save();
+  aplicarAcesso();
+if(sessao){ ir(sessao.role==="apontador"?"lancamento":"cadastro"); }
+}
+
+let db = load();
+let paiSel = db.pais[0] ? db.pais[0].id : null;
+let editandoPaiId = null;
+let editandoFilhoId = null;
+let view = "cadastro";
+let funcionarioAtual = null;
+let sessao = JSON.parse(localStorage.getItem("engecap_mo_sessao")||"null");
+
+const USERS = [
+  { email:"admin@obra.local", senha:"admin123", role:"admin" },
+  { email:"engenheiro@obra.local", senha:"123456", role:"engenheiro" },
+  { email:"apontador@obra.local", senha:"123456", role:"apontador" }
+];
+
+function pode(tela){
+  if(!sessao) return false;
+  if(sessao.role==="admin") return true;
+  if(sessao.role==="engenheiro") return ["cadastro","liberacao","fechar","saldo"].indexOf(tela)>=0;
+  if(sessao.role==="apontador") return tela==="lancamento";
+  return false;
+}
+function aplicarAcesso(){
+  var login = document.getElementById("telaLogin");
+  if(!sessao){
+    login.style.display = "flex";
+    return;
+  }
+  login.style.display = "none";
+  document.getElementById("userChip").classList.remove("hidden");
+  document.getElementById("btnSair").classList.remove("hidden");
+  document.getElementById("userChip").textContent = sessao.role + " · " + sessao.email;
+  var map = {cadastro:"navCad", liberacao:"navLib", lancamento:"navLan", fechar:"navFec", saldo:"navSal"};
+  Object.keys(map).forEach(function(tela){
+    var el = document.getElementById(map[tela]);
+    if(!el) return;
+    el.classList.toggle("hidden", !pode(tela));
+  });
+}
+function fazerLogin(){
+  var email = (document.getElementById("loginEmail").value||"").trim();
+  var senha = document.getElementById("loginSenha").value||"";
+  var u = USERS.find(function(x){ return x.email===email && x.senha===senha; });
+  var box = document.getElementById("loginErro");
+  if(!u){
+    box.textContent = "Usuário ou senha inválidos.";
+    box.classList.remove("hidden");
+    return;
+  }
+  sessao = { email:u.email, role:u.role };
+  localStorage.setItem("engecap_mo_sessao", JSON.stringify(sessao));
+  aplicarAcesso();
+  var home = sessao.role==="apontador" ? "lancamento" : "cadastro";
+  ir(home);
+}
+function sair(){
+  sessao = null;
+  localStorage.removeItem("engecap_mo_sessao");
+  location.reload();
+}
+
+
+function ativas(f){ return Object.entries(f||{}).filter(function(x){ return x[1] > 0; }); }
+function tot(f,q){ return ativas(f).reduce(function(a,x){ return a + q*x[1]; },0); }
+function filhosDoPai(id){ return db.filhos.filter(function(f){ return f.paiId === (id||paiSel); }); }
+function somaLib(f){ return (f.liberacoes||[]).reduce(function(a,l){ return a + Number(l.qtd||0); },0); }
+
+function ir(v){
+  if(sessao && !pode(v)){
+    alert("Seu perfil não acessa essa tela.");
+    return;
+  }
+  view = v;
+  document.getElementById("viewCadastro").classList.toggle("hidden", v!=="cadastro");
+  document.getElementById("viewLiberacao").classList.toggle("hidden", v!=="liberacao");
+  document.getElementById("viewLancamento").classList.toggle("hidden", v!=="lancamento");
+  document.getElementById("viewFechar").classList.toggle("hidden", v!=="fechar");
+  document.getElementById("viewSaldo").classList.toggle("hidden", v!=="saldo");
+  var titles = {cadastro:"Cadastro de obra", liberacao:"Liberação de fase", lancamento:"Lançar medição", fechar:"Resumo de medições", saldo:"Controle de saldo"};
+  document.getElementById("titulo").textContent = titles[v] || v;
+  var map = {cadastro:"navCad", liberacao:"navLib", lancamento:"navLan", fechar:"navFec", saldo:"navSal"};
+  Object.keys(map).forEach(function(name){
+    var el = document.getElementById(map[name]);
+    if(el) el.className = "px-3 py-2 rounded-lg text-sm font-medium " + (v===name ? "bg-blue-600 text-white" : "bg-white border");
+  });
+  render();
+}
+
+function salvarPai(){
+  var nome = document.getElementById("novoPai").value.trim();
+  if(!nome) return alert("Nome do pai");
+  if(editandoPaiId){
+    db.pais.find(function(p){ return p.id===editandoPaiId; }).nome = nome;
+    paiSel = editandoPaiId;
+    cancelarEdicaoPai();
+  } else {
+    var id = Date.now();
+    db.pais.push({id:id, nome:nome});
+    paiSel = id;
+    document.getElementById("novoPai").value = "";
+  }
+  save(); render();
+}
+function editarPai(id,e){
+  e.stopPropagation();
+  editandoPaiId = id;
+  document.getElementById("novoPai").value = db.pais.find(function(p){ return p.id===id; }).nome;
+  document.getElementById("btnPai").textContent = "Salvar alteração";
+  document.getElementById("btnCancelarPai").classList.remove("hidden");
+}
+function cancelarEdicaoPai(){
+  editandoPaiId = null;
+  document.getElementById("novoPai").value = "";
+  document.getElementById("btnPai").textContent = "Criar serviço pai";
+  document.getElementById("btnCancelarPai").classList.add("hidden");
+}
+function excluirPai(id,e){
+  e.stopPropagation();
+  var p = db.pais.find(function(x){ return x.id===id; });
+  var n = filhosDoPai(id).length;
+  if(!confirm(n ? ("Excluir " + p.nome + " e " + n + " filho(s)?") : ("Excluir " + p.nome + "?"))) return;
+  db.filhos = db.filhos.filter(function(f){ return f.paiId!==id; });
+  db.pais = db.pais.filter(function(x){ return x.id!==id; });
+  paiSel = db.pais[0] ? db.pais[0].id : null;
+  save(); render();
+}
+
+function lerFuncoes(){
+  return {
+    Carpinteiro: Number(document.getElementById("vuCarp").value)||0,
+    Armador: Number(document.getElementById("vuArm").value)||0,
+    Pedreiro: Number(document.getElementById("vuPed").value)||0,
+    Servente: Number(document.getElementById("vuServ").value)||0
+  };
+}
+function preencherFuncoes(f){
+  f = f || {};
+  document.getElementById("vuCarp").value = f.Carpinteiro || "";
+  document.getElementById("vuArm").value = f.Armador || "";
+  document.getElementById("vuPed").value = f.Pedreiro || "";
+  document.getElementById("vuServ").value = f.Servente || "";
+}
+function salvarFilho(){
+  if(!paiSel) return;
+  var nome = document.getElementById("filhoNome").value.trim();
+  var un = document.getElementById("filhoUn").value;
+  var qtd = parseFloat(document.getElementById("filhoQtd").value);
+  var funcoes = lerFuncoes();
+  if(!nome || !qtd || ativas(funcoes).length===0) return alert("Preenche filho, quantidade e unitário");
+  if(editandoFilhoId){
+    var f = db.filhos.find(function(x){ return x.id===editandoFilhoId; });
+    if(qtd < somaLib(f)) return alert("Quantidade menor do que já foi liberado");
+    f.nome=nome; f.un=un; f.qtd=qtd; f.funcoes=funcoes;
+    cancelarEdicaoFilho();
+  } else {
+    db.filhos.push({id:Date.now(), paiId:paiSel, nome:nome, un:un, qtd:qtd, funcoes:funcoes, liberacoes:[]});
+    document.getElementById("filhoNome").value = "";
+    document.getElementById("filhoQtd").value = "";
+  }
+  save(); render();
+}
+function editarFilho(id){
+  var f = db.filhos.find(function(x){ return x.id===id; });
+  editandoFilhoId = id;
+  document.getElementById("filhoNome").value = f.nome;
+  document.getElementById("filhoUn").value = f.un;
+  document.getElementById("filhoQtd").value = f.qtd;
+  preencherFuncoes(f.funcoes);
+  document.getElementById("btnFilho").textContent = "Salvar filho";
+  document.getElementById("btnCancelarFilho").classList.remove("hidden");
+}
+function cancelarEdicaoFilho(){
+  editandoFilhoId = null;
+  document.getElementById("filhoNome").value = "";
+  document.getElementById("filhoQtd").value = "";
+  preencherFuncoes({});
+  document.getElementById("btnFilho").textContent = "Adicionar filho neste pai";
+  document.getElementById("btnCancelarFilho").classList.add("hidden");
+}
+function copiarFilho(){
+  var idx = document.getElementById("copyFrom").value;
+  var nome = document.getElementById("filhoNome").value.trim();
+  if(idx==="" || !nome) return alert("Origem + novo nome");
+  var o = filhosDoPai()[idx];
+  db.filhos.push({id:Date.now(), paiId:paiSel, nome:nome, un:o.un, qtd:o.qtd, funcoes:Object.assign({}, o.funcoes), liberacoes:[]});
+  document.getElementById("filhoNome").value = "";
+  save(); render();
+}
+function removerFilho(id){
+  var f = db.filhos.find(function(x){ return x.id===id; });
+  if(somaLib(f)>0) return alert("Esse filho já tem liberação.");
+  if(!confirm("Excluir " + f.nome + "?")) return;
+  db.filhos = db.filhos.filter(function(x){ return x.id!==id; });
+  save(); render();
+}
+
+function liberar(id){
+  var f = db.filhos.find(function(x){ return x.id===id; });
+  if(!f.liberacoes) f.liberacoes = [];
+  var q = parseFloat(document.getElementById("lib-"+id).value);
+  var trecho = (document.getElementById("trecho-"+id).value||"").trim();
+  var saldo = f.qtd - somaLib(f);
+  if(!q || q<=0) return alert("Informa a quantidade");
+  if(!trecho) return alert("Identifica o trecho. Ex: Trecho B");
+  if(q>saldo) return alert("Estoura o saldo");
+  f.liberacoes.push({
+    id: Date.now(),
+    qtd: q,
+    trecho: trecho,
+    periodo: document.getElementById("periodo").value
+  });
+  document.getElementById("lib-"+id).value = "";
+  document.getElementById("trecho-"+id).value = "";
+  save(); render();
+}
+function editarLib(filhoId, libId){
+  var f = db.filhos.find(function(x){ return x.id===filhoId; });
+  var l = f.liberacoes.find(function(x){ return x.id===libId; });
+  var novoTrecho = prompt("Identificação do trecho:", l.trecho);
+  if(novoTrecho===null) return;
+  var novaQtd = prompt("Quantidade:", l.qtd);
+  if(novaQtd===null) return;
+  var q = parseFloat(novaQtd);
+  var outros = somaLib(f) - l.qtd;
+  if(!q || q<=0 || !novoTrecho.trim()) return alert("Dados inválidos");
+  if(outros + q > f.qtd) return alert("Estoura o previsto");
+  l.trecho = novoTrecho.trim();
+  l.qtd = q;
+  save(); render();
+}
+function excluirLib(filhoId, libId){
+  var f = db.filhos.find(function(x){ return x.id===filhoId; });
+  if(!confirm("Remover esta liberação?")) return;
+  f.liberacoes = f.liberacoes.filter(function(x){ return x.id!==libId; });
+  save(); render();
+}
+
+function buscarFuncionario(){
+  var chapa = (document.getElementById("funcChapa").value||"").trim();
+  var f = FUNCIONARIOS.find(function(x){ return x.chapa===chapa; });
+  funcionarioAtual = f || null;
+  document.getElementById("funcNome").value = f ? f.nome : "";
+  document.getElementById("funcFuncao").value = f ? f.funcao : "";
+  document.getElementById("funcStatus").textContent = f ? (f.chapa + " · " + f.nome + " · " + f.funcao) : (chapa ? "Chapa não encontrada" : "Chapas: 18432-36 carp · 19201-05 arm · 20962-65 ped · 17554-58 serv");
+  if(view==="lancamento") renderLancamento();
+}
+
+function medidoNoTrecho(libId, funcao){
+  return (db.medicoes||[]).filter(function(m){
+    if(m.libId!==libId) return false;
+    if(m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra") return false;
+    if(funcao && m.funcao!==funcao) return false;
+    return true;
+  }).reduce(function(a,m){ return a + Number(m.qtd||0); },0);
+}
+
+function trechosLiberados(funcao){
+  var out = [];
+  db.filhos.forEach(function(f){
+    var pai = db.pais.find(function(p){ return p.id===f.paiId; });
+    (f.liberacoes||[]).forEach(function(l){
+      var medido = medidoNoTrecho(l.id, funcao || null);
+      out.push({ filho:f, pai:pai, lib:l, teto:l.qtd, medido:medido, saldo:l.qtd-medido, funcaoFiltro: funcao||null });
+    });
+  });
+  return out;
+}
+
+function saldosPorFuncao(f, lib){
+  return ativas(f.funcoes).map(function(x){
+    var nome = x[0];
+    var medido = medidoNoTrecho(lib.id, nome);
+    return { funcao:nome, teto:lib.qtd, medido:medido, saldo:lib.qtd-medido, vu:x[1] };
+  });
+}
+
+function lancar(libId){
+  if(!funcionarioAtual) return alert("Puxa a chapa primeiro");
+  var q = parseFloat(document.getElementById("med-"+libId).value);
+  var t = trechosLiberados(funcionarioAtual.funcao).find(function(x){ return x.lib.id===libId; });
+  if(!q || q<=0) return alert("Informa a quantidade");
+  if(q>t.saldo) return alert("Estoura o teto desta função neste trecho. Saldo "+t.saldo+" "+t.filho.un);
+  var vu = t.filho.funcoes[funcionarioAtual.funcao] || 0;
+  if(!vu) return alert("Essa função não recebe neste item");
+  db.medicoes.push({
+    id: Date.now(),
+    libId: libId,
+    filhoId: t.filho.id,
+    funcionario: funcionarioAtual.nome,
+    funcao: funcionarioAtual.funcao,
+    chapa: funcionarioAtual.chapa,
+    qtd: q,
+    vu: vu,
+    valor: q*vu,
+    trecho: t.lib.trecho,
+    item: t.filho.nome,
+    pai: t.pai.nome
+  });
+  var qi = parseFloat(document.getElementById("qtdInt").value)||0;
+  var qv = parseFloat(document.getElementById("qtdVt").value)||0;
+  function temExtra(tipo){
+    return db.medicoes.some(function(m){ return m.chapa===funcionarioAtual.chapa && m.tipo===tipo; });
+  }
+  if(qi && !temExtra("integracao")){
+    db.medicoes.push({
+      id: Date.now()+1,
+      tipo: "integracao",
+      funcionario: funcionarioAtual.nome,
+      funcao: funcionarioAtual.funcao,
+      chapa: funcionarioAtual.chapa,
+      qtd: qi,
+      vu: PRECOS_EXTRA.integracao,
+      valor: qi*PRECOS_EXTRA.integracao,
+      item: "Integração",
+      pai: "Vales",
+      trecho: "-"
+    });
+    document.getElementById("qtdInt").value = 0;
+  }
+  if(qv && !temExtra("vtSabado")){
+    db.medicoes.push({
+      id: Date.now()+2,
+      tipo: "vtSabado",
+      funcionario: funcionarioAtual.nome,
+      funcao: funcionarioAtual.funcao,
+      chapa: funcionarioAtual.chapa,
+      qtd: qv,
+      vu: PRECOS_EXTRA.vtSabado,
+      valor: qv*PRECOS_EXTRA.vtSabado,
+      item: "VT de sábado",
+      pai: "Vales",
+      trecho: "-"
+    });
+    document.getElementById("qtdVt").value = 0;
+  }
+  document.getElementById("med-"+libId).value = "";
+  save(); render();
+}
+function editarMed(id){
+  var m = db.medicoes.find(function(x){ return x.id===id; });
+  if(!m) return;
+  if(m.tipo==="extra"){
+    var qi = parseFloat(prompt("Dias de Integração:", m.integracao||0));
+    var qv = parseFloat(prompt("Qtde VT de sábado:", m.vtSabado||0));
+    if(isNaN(qi) || isNaN(qv) || qi<0 || qv<0) return alert("Valor inválido");
+    db.medicoes = db.medicoes.filter(function(x){ return x.id!==id; });
+    if(qi){
+      db.medicoes.push({id:Date.now(), tipo:"integracao", funcionario:m.funcionario, funcao:m.funcao, chapa:m.chapa, qtd:qi, vu:PRECOS_EXTRA.integracao, valor:qi*PRECOS_EXTRA.integracao, item:"Integração", pai:"Vales", trecho:"-"});
+    }
+    if(qv){
+      db.medicoes.push({id:Date.now()+1, tipo:"vtSabado", funcionario:m.funcionario, funcao:m.funcao, chapa:m.chapa, qtd:qv, vu:PRECOS_EXTRA.vtSabado, valor:qv*PRECOS_EXTRA.vtSabado, item:"VT de sábado", pai:"Vales", trecho:"-"});
+    }
+    save(); render();
+    return;
+  }
+  var q = parseFloat(prompt("Nova quantidade:", m.qtd));
+  if(!q || q<=0) return alert("Quantidade inválida");
+  if(!m.tipo){
+    var t = trechosLiberados(m.funcao).find(function(x){ return x.lib.id===m.libId; });
+    var saldo = t ? (t.saldo + m.qtd) : q;
+    if(q>saldo) return alert("Estoura o teto do trecho. Máximo "+saldo);
+    m.qtd = q;
+    m.valor = q * (m.vu||0);
+  } else {
+    m.qtd = q;
+    if(m.tipo==="integracao") { m.vu = PRECOS_EXTRA.integracao; m.valor = q*m.vu; }
+    if(m.tipo==="vtSabado") { m.vu = PRECOS_EXTRA.vtSabado; m.valor = q*m.vu; }
+  }
+  save(); render();
+}
+function excluirMed(id){
+  db.medicoes = db.medicoes.filter(function(m){ return m.id!==id; });
+  save(); render();
+}
+
+function renderCadastro(){
+  document.getElementById("listaPais").innerHTML = db.pais.map(function(p){
+    var lista = filhosDoPai(p.id);
+    var valor = lista.reduce(function(a,f){ return a+tot(f.funcoes,f.qtd); },0);
+    var porUn = {};
+    lista.forEach(function(f){ porUn[f.un]=(porUn[f.un]||0)+f.qtd; });
+    var qtdTxt = Object.keys(porUn).map(function(u){ return porUn[u].toLocaleString("pt-BR")+" "+u; }).join(" + ") || "sem qtde";
+    var ativo = p.id===paiSel;
+    return '<div class="flex items-center gap-1 rounded-lg '+(ativo?"bg-blue-600 text-white":"hover:bg-slate-50")+'">'+
+      '<button onclick="paiSel='+p.id+';render()" class="flex-1 text-left px-3 py-2 text-sm">'+
+        '<span class="block font-medium">'+p.nome+'</span>'+
+        '<span class="block text-[11px] '+(ativo?"text-blue-100":"text-slate-500")+'">'+money(valor)+'</span>'+
+        '<span class="block text-[11px] '+(ativo?"text-blue-100":"text-slate-400")+'">'+qtdTxt+'</span>'+
+      '</button>'+
+      '<button onclick="editarPai('+p.id+',event)" class="px-2">✎</button>'+
+      '<button onclick="excluirPai('+p.id+',event)" class="px-2">✕</button></div>';
+  }).join("") || '<p class="text-xs text-slate-400 p-3">Cria o primeiro pai</p>';
+
+  var pai = db.pais.find(function(p){ return p.id===paiSel; });
+  document.getElementById("paiAtual").textContent = pai ? ("Filhos de: "+pai.nome) : "Selecione um pai";
+  document.getElementById("formFilho").classList.toggle("hidden", !pai);
+  var lista = pai ? filhosDoPai() : [];
+  document.getElementById("copyFrom").innerHTML = '<option value="">Copiar de qual filho?</option>' + lista.map(function(f,i){ return '<option value="'+i+'">'+f.nome+'</option>'; }).join("");
+  if(!pai){
+    document.getElementById("listaFilhos").innerHTML = '<p class="text-slate-400 text-sm">Selecione um pai.</p>';
+  } else if(!lista.length){
+    document.getElementById("listaFilhos").innerHTML = '<p class="text-slate-400 text-sm">Sem filhos neste pai.</p>';
+  } else {
+    document.getElementById("listaFilhos").innerHTML = lista.map(function(f){
+      return '<div class="border rounded-xl p-3 mb-2"><div class="flex justify-between gap-3"><div>'+
+        '<p class="font-medium">'+f.nome+'</p>'+
+        '<p class="text-xs text-slate-500">'+f.qtd.toLocaleString("pt-BR")+" "+f.un+" · liberado "+somaLib(f)+" "+f.un+'</p></div>'+
+        '<div class="text-right"><p class="text-sm font-semibold">'+money(tot(f.funcoes,f.qtd))+'</p>'+
+        '<button onclick="editarFilho('+f.id+')" class="text-[11px] text-blue-600 mr-2">editar</button>'+
+        '<button onclick="removerFilho('+f.id+')" class="text-[11px] text-slate-400">excluir</button></div></div>'+
+        '<div class="flex flex-wrap gap-1 mt-2">'+ativas(f.funcoes).map(function(x){ return '<span class="text-[11px] bg-slate-50 border rounded-full px-2 py-1">'+x[0]+" "+money(x[1])+"/"+f.un+"</span>"; }).join("")+"</div></div>";
+    }).join("");
+  }
+  document.getElementById("total").textContent = money(db.filhos.reduce(function(a,f){ return a+tot(f.funcoes,f.qtd); },0));
+}
+
+function rankAndar(n){
+  n = (n||"").toUpperCase();
+  if(n.indexOf("COBERT")>=0 || n.indexOf("BARRILETE")>=0 || n.indexOf("ATICO")>=0 || n.indexOf("ÁTICO")>=0) return 9000;
+  if(n.indexOf("TIPO")>=0) {
+    var mt = n.match(/(\d+)/);
+    return mt ? 1000 + parseInt(mt[1],10) : 1000;
+  }
+  var m = n.match(/(\d+)/);
+  if(m) return parseInt(m[1],10);
+  if(n.indexOf("TÉRREO")>=0 || n.indexOf("TERREO")>=0) return 0;
+  if(n.indexOf("SUB")>=0) return -10;
+  if(n.indexOf("FUND")>=0) return -20;
+  return 500;
+}
+
+function croquiHTML(p, andares){
+  if(!andares.length){
+    return '<div class="w-full max-w-[9rem] mx-auto text-center text-[11px] text-slate-400 py-6">Sem filhos</div>';
+  }
+  var body = '<div class="flex flex-col items-center gap-1">';
+  body += '<div class="w-36 h-2.5 bg-slate-700 rounded-t-md"></div>';
+  andares.forEach(function(a){
+    var cor = a.pct<=0 ? "bg-slate-200 border-slate-300 text-slate-500"
+      : a.pct>=100 ? "bg-emerald-400 border-emerald-600 text-emerald-950"
+      : "bg-amber-300 border-amber-500 text-amber-950";
+    body += '<div class="w-44 border-2 '+cor+' rounded px-1.5 py-1 text-left shadow-sm">'+
+      '<div class="text-[9px] font-semibold leading-tight truncate">'+a.nome+'</div>'+
+      '<div class="text-[8px] opacity-80">'+a.pct+'% · '+a.liberado+'/'+a.qtd+'</div>'+
+      '<div class="mt-0.5 h-1 bg-black/10 rounded overflow-hidden"><div class="h-full bg-black/30" style="width:'+a.pct+'%"></div></div></div>';
+  });
+  body += '<div class="w-48 h-3 bg-slate-600 rounded-b-md mt-1"></div>';
+  body += '<div class="w-52 h-2 bg-slate-400 rounded-sm mt-0.5"></div>';
+  body += '</div>';
+  return body;
+}
+
+function toggleFormPai(paiId){
+  window._formExp = window._formExp || {};
+  if(window._formExp[paiId] === undefined) window._formExp[paiId] = false;
+  window._formExp[paiId] = !window._formExp[paiId];
+  renderLiberacao();
+}
+
+function renderLiberacao(){
+  window._formExp = window._formExp || {};
+  document.getElementById("listaLib").innerHTML = db.pais.map(function(p){
+    var lista = filhosDoPai(p.id).slice().sort(function(a,b){ return rankAndar(b.nome)-rankAndar(a.nome); });
+    var andares = lista.map(function(f){
+      var liberado = somaLib(f);
+      var pct = f.qtd ? Math.min(100, Math.round(liberado/f.qtd*100)) : 0;
+      return { id:f.id, nome:f.nome, pct:pct, liberado:liberado, qtd:f.qtd, un:f.un };
+    });
+    var croqui = croquiHTML(p, andares);
+    var aberto = !!window._formExp[p.id]; // default recolhido: so resumo
+
+    var filhosHtml = !lista.length
+      ? '<p class="text-sm text-slate-400 p-4">Sem filhos neste pai.</p>'
+      : lista.map(function(f){
+          var liberado = somaLib(f);
+          var saldo = f.qtd - liberado;
+          var pct = f.qtd ? Math.round(liberado/f.qtd*100) : 0;
+          var linhas = (f.liberacoes||[]).map(function(l){
+            return '<div class="flex items-center justify-between text-xs bg-slate-50 border rounded-lg px-3 py-2 mt-1"><span><b>'+l.trecho+"</b> · "+l.qtd+" "+f.un+'</span><span><button onclick="editarLib('+f.id+","+l.id+')" class="text-blue-600 mr-2">editar</button><button onclick="excluirLib('+f.id+","+l.id+')" class="text-slate-400">excluir</button></span></div>';
+          }).join("");
+          var resumo = '<div class="px-4 py-3">'+
+            '<div class="flex items-center justify-between gap-3 flex-wrap">'+
+              '<div class="min-w-0 flex-1">'+
+                '<p class="font-semibold text-slate-800">'+f.nome+
+                ' <span class="font-normal text-slate-500 text-xs ml-1">Previsto '+f.qtd.toLocaleString("pt-BR")+' '+f.un+' · Liberado '+liberado.toLocaleString("pt-BR")+' · Saldo '+saldo.toLocaleString("pt-BR")+' '+f.un+'</span></p>'+
+              '</div>'+
+              (aberto
+                ? '<span class="text-[11px] text-slate-400 shrink-0">formulário aberto</span>'
+                : '<button type="button" onclick="window._formExp=window._formExp||{};window._formExp['+p.id+']=true;renderLiberacao();setTimeout(function(){var el=document.getElementById(\'trecho-'+f.id+'\');if(el)el.focus();},50)" class="shrink-0 inline-flex items-center gap-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg shadow-sm">Liberar <span aria-hidden="true">→</span></button>')+
+            '</div>'+
+            '<div class="h-2 bg-slate-100 rounded-full mt-2.5"><div class="h-full bg-blue-600 rounded-full" style="width:'+pct+'%"></div></div>';
+var form = aberto ? (
+            '<div class="mt-3">'+
+              '<div class="grid md:grid-cols-3 gap-2 mb-2"><input id="trecho-'+f.id+'" placeholder="Ex: Trecho B" class="border rounded-lg px-3 py-2 text-sm md:col-span-2" /><input id="lib-'+f.id+'" type="number" placeholder="Qtde" class="border rounded-lg px-3 py-2 text-sm" /></div>'+
+              '<button onclick="liberar('+f.id+')" class="bg-blue-600 text-white text-sm px-3 py-2 rounded-lg mb-2">Liberar trecho</button>'+
+              (linhas || '<p class="text-[11px] text-slate-400">Nenhum trecho liberado.</p>')+
+            '</div>'
+          ) : (linhas ? '<div class="mt-2 space-y-1">'+linhas+'</div>' : '');
+          return resumo + form + '</div>';
+        }).join("");
+
+    var resumoPai = andares.length
+      ? (andares.filter(function(a){return a.pct>0;}).length + " de " + andares.length + " com liberação")
+      : "sem andares";
+
+    return '<section class="bg-white rounded-2xl border-2 border-slate-300 overflow-hidden shadow-sm">'+
+      '<header class="px-5 py-4 bg-slate-800 text-white flex items-center justify-between gap-3">'+
+        '<div><p class="text-[11px] uppercase text-slate-300">Serviço pai</p><h3 class="font-bold">'+p.nome+'</h3><p class="text-[11px] text-slate-300">'+resumoPai+'</p></div>'+
+        '<button type="button" onclick="toggleFormPai('+p.id+')" class="text-sm border border-slate-500 rounded-lg px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white">'+(aberto?"Recolher formulários":"Expandir formulários")+'</button>'+
+      '</header>'+
+      '<div class="grid md:grid-cols-12">'+
+        '<div class="md:col-span-4 border-r-2 border-slate-200 bg-slate-100 p-4 flex flex-col items-center overflow-y-auto max-h-[70vh]">'+croqui+'</div>'+
+        '<div class="md:col-span-8 divide-y-2 divide-slate-200">'+filhosHtml+'</div>'+
+      '</div></section>';
+  }).join("") || '<p class="text-slate-500">Cadastre serviços primeiro.</p>';
+}
+
+function renderLancamento(){
+  var box = document.getElementById("listaLan");
+  var funcaoAtual = funcionarioAtual ? funcionarioAtual.funcao : null;
+  var todos = trechosLiberados(funcaoAtual);
+  var trechos = todos;
+  var aviso = "";
+  if(funcionarioAtual){
+    var funcao = funcionarioAtual.funcao;
+    trechos = todos.filter(function(t){ return (t.filho.funcoes||{})[funcao] > 0; });
+    aviso = '<div class="text-xs text-emerald-50 bg-emerald-700 rounded-lg px-3 py-2 mb-3 font-medium">Filtrado para '+funcao+' · '+funcionarioAtual.nome+'</div>';
+  } else {
+    aviso = '<div class="text-xs text-slate-500 bg-slate-50 border rounded-lg px-3 py-2 mb-3">Todos os trechos liberados. Digite a chapa para filtrar só os da função do funcionário.</div>';
+  }
+  if(!todos.length){
+    box.innerHTML = '<div class="bg-white rounded-2xl border p-6 text-sm text-slate-500">Nenhum trecho liberado ainda. Vai na aba Liberação primeiro.</div>';
+  } else if(funcionarioAtual && !trechos.length){
+    box.innerHTML = aviso + '<div class="bg-white rounded-2xl border p-6 text-sm text-slate-500">Não tem trecho liberado para '+funcionarioAtual.funcao+'.</div>';
+  } else {
+    box.innerHTML = aviso + trechos.map(function(t){
+      var funcoes = Object.keys(t.filho.funcoes||{}).filter(function(k){ return t.filho.funcoes[k]>0; }).join(" · ");
+      var pode = !funcionarioAtual; // sem chapa mostra, mas botão só com chapa
+      return '<div class="bg-white rounded-2xl border-2 border-slate-300 p-4 shadow-sm"><p class="text-[11px] uppercase tracking-wide text-slate-400">'+t.pai.nome+'</p>'+
+        '<p class="font-bold text-slate-800">'+t.filho.nome+" · "+t.lib.trecho+'</p>'+
+        '<p class="text-xs text-slate-500 mb-1">'+(funcaoAtual
+          ? ("Saldo "+funcaoAtual+": "+t.saldo+" / "+t.teto+" "+t.filho.un+" · já medido nesta função "+t.medido)
+          : ("Teto liberado "+t.teto+" "+t.filho.un+" · cada função tem esse teto pra ela"))+'</p>'+
+        '<p class="text-[11px] text-slate-400 mb-3">'+(funcaoAtual ? ("Função: "+funcaoAtual) : ("Saldos: "+saldosPorFuncao(t.filho,t.lib).map(function(s){ return s.funcao+" "+s.saldo+"/"+s.teto; }).join(" · ")))+'</p>'+
+        (funcionarioAtual
+          ? ('<div class="flex flex-wrap gap-2"><input id="med-'+t.lib.id+'" type="number" step="0.01" placeholder="Qtde deste funcionário" class="border rounded-lg px-3 py-2 text-sm w-44" />'+
+             '<button onclick="lancar('+t.lib.id+')" class="bg-emerald-600 text-white text-sm px-3 py-2 rounded-lg">Lançar neste trecho</button></div>')
+          : '<p class="text-xs text-amber-700">Informe a chapa para lançar neste trecho.</p>')+
+        '</div>';
+    }).join("");
+  }
+  var meds = db.medicoes||[];
+  if(!meds.length){
+    document.getElementById("listaMed").innerHTML = "Nenhuma ainda.";
+    return;
+  }
+  var porFuncao = {};
+  meds.forEach(function(m){
+    var fn = m.funcao || "Sem função";
+    if(!porFuncao[fn]) porFuncao[fn] = {};
+    var k = m.chapa || m.funcionario;
+    if(!porFuncao[fn][k]) porFuncao[fn][k] = { chapa:m.chapa||"-", nome:m.funcionario, funcao:fn, itens:[], total:0 };
+    porFuncao[fn][k].itens.push(m);
+    porFuncao[fn][k].total += Number(m.valor||0);
+  });
+  document.getElementById("listaMed").innerHTML = Object.keys(porFuncao).sort().map(function(fn){
+    var grupos = porFuncao[fn];
+    var keys = Object.keys(grupos);
+    var subtotal = keys.reduce(function(a,k){ return a+grupos[k].total; },0);
+    var pessoas = keys.map(function(k){
+      var g = grupos[k];
+      var sid = "lan-"+fn.replace(/[^a-zA-Z0-9]/g,"")+"-"+String(k).replace(/[^a-zA-Z0-9]/g,"");
+      var itens = g.itens.map(function(m){
+        var det;
+        if(m.tipo==="integracao") det = "Integração · "+m.qtd+" dia(s)";
+        else if(m.tipo==="vtSabado") det = "VT de sábado · "+m.qtd;
+        else if(m.tipo==="extra") det = "Integração "+(m.integracao||0)+" · VT sábado "+(m.vtSabado||0);
+        else det = m.pai+" · "+m.item+" · "+m.trecho+" · "+m.qtd;
+        return '<div class="flex justify-between gap-3 py-2 border-t text-sm"><div><p>'+det+'</p></div><div class="text-right"><p>'+money(m.valor)+'</p><button onclick="editarMed('+m.id+')" class="text-[11px] text-blue-600 mr-2">✎ editar</button><button onclick="excluirMed('+m.id+')" class="text-[11px] text-slate-400">excluir</button></div></div>';
+      }).join("");
+      return '<div class="border-t first:border-0">'+
+        '<button onclick="toggleFunc(\''+sid+'\')" class="w-full flex justify-between items-center px-3 py-3 text-left hover:bg-slate-50">'+
+          '<div><p class="font-medium">'+g.chapa+' · '+g.nome+'</p><p class="text-xs text-slate-500">'+g.itens.length+' lançamento(s)</p></div>'+
+          '<p class="font-semibold">'+money(g.total)+'</p></button>'+
+        '<div id="'+sid+'" class="hidden px-3 pb-2 bg-slate-50">'+itens+'</div></div>';
+    }).join("");
+    return '<div class="border-2 border-slate-300 rounded-xl mb-4 overflow-hidden">'+
+      '<div class="px-4 py-3 bg-slate-800 text-white flex justify-between items-center">'+
+        '<div><p class="text-[11px] uppercase text-slate-300">Função</p><p class="font-semibold">'+fn+'</p></div>'+
+        '<p class="font-semibold">'+money(subtotal)+'</p></div>'+
+      '<div class="divide-y-2 divide-slate-200">'+pessoas+'</div></div>';
+  }).join("");
+}
+
+function toggleFunc(id){
+  var el = document.getElementById(id);
+  if(el) el.classList.toggle("hidden");
+}
+
+function calcFolha(totalTarefa){
+  // Aproximação da planilha — depois calibramos com os coeficientes reais
+  var salarioTributado = totalTarefa * 0.42;
+  var salarioEncargos = salarioTributado * 2.065;
+  var premio = totalTarefa - salarioTributado;
+  var vale = salarioTributado * 0.40;
+  var folha = totalTarefa - vale;
+  var custo = salarioEncargos + vale;
+  return {
+    tarefa: totalTarefa,
+    tributado: salarioTributado,
+    encargos: salarioEncargos,
+    premio: premio,
+    vale: vale,
+    folha: folha,
+    custo: custo
+  };
+}
+
+function filtrarResumo(fn){
+  window._resumoFiltro = (window._resumoFiltro === fn) ? "" : fn;
+  renderFechar();
+}
+
+function renderFechar(){
+  var meds = db.medicoes || [];
+  var porFuncao = {};
+  meds.forEach(function(m){
+    var fn = m.funcao || "Sem função";
+    if(!porFuncao[fn]) porFuncao[fn] = {};
+    var k = m.chapa || m.funcionario;
+    if(!porFuncao[fn][k]) porFuncao[fn][k] = { chapa:m.chapa||"-", nome:m.funcionario, funcao:fn, itens:[], tarefa:0 };
+    porFuncao[fn][k].itens.push(m);
+    porFuncao[fn][k].tarefa += Number(m.valor||0);
+  });
+  var funcoes = Object.keys(porFuncao).sort();
+  var totalTarefa = 0, custoTotal = 0, premioTotal = 0, valeTotal = 0, qtdFunc = 0;
+  funcoes.forEach(function(fn){
+    Object.keys(porFuncao[fn]).forEach(function(k){
+      var c = calcFolha(porFuncao[fn][k].tarefa);
+      qtdFunc++;
+      totalTarefa += c.tarefa;
+      custoTotal += c.custo;
+      premioTotal += c.premio;
+      valeTotal += c.vale;
+    });
+  });
+  document.getElementById("fecQtdFunc").textContent = qtdFunc;
+  document.getElementById("fecTarefa").textContent = money(totalTarefa);
+  document.getElementById("fecCusto").textContent = money(custoTotal);
+  var elP = document.getElementById("fecPremio"); if(elP) elP.textContent = money(premioTotal);
+  var elV = document.getElementById("fecVale"); if(elV) elV.textContent = money(valeTotal);
+
+  var filtro = window._resumoFiltro || "";
+  var chips = '<button onclick="filtrarResumo(\'\')" class="text-xs px-3 py-1.5 rounded-full border '+(filtro===""?"bg-slate-800 text-white border-slate-800":"bg-white text-slate-600")+'">Todas</button>';
+  funcoes.forEach(function(fn){
+    var n = Object.keys(porFuncao[fn]).length;
+    chips += '<button onclick="filtrarResumo(\''+fn+'\')" class="text-xs px-3 py-1.5 rounded-full border '+(filtro===fn?"bg-blue-600 text-white border-blue-600":"bg-white text-slate-600")+'">'+fn+' · '+n+'</button>';
+  });
+  document.getElementById("fecFiltros").innerHTML = chips;
+
+  var visiveis = filtro ? funcoes.filter(function(fn){ return fn===filtro; }) : funcoes;
+  if(!funcoes.length){
+    document.getElementById("listaFec").innerHTML = '<div class="bg-white rounded-2xl border p-6 text-sm text-slate-500">Nenhuma medição lançada ainda.</div>';
+    return;
+  }
+
+  document.getElementById("listaFec").innerHTML = visiveis.map(function(fn){
+    var grupos = porFuncao[fn];
+    var keys = Object.keys(grupos).sort(function(a,b){ return grupos[b].tarefa - grupos[a].tarefa; });
+    var subT = 0, subC = 0, subP = 0;
+    keys.forEach(function(k){
+      var c = calcFolha(grupos[k].tarefa);
+      subT += c.tarefa; subC += c.custo; subP += c.premio;
+    });
+    var linhas = keys.map(function(k){
+      var g = grupos[k];
+      var c = calcFolha(g.tarefa);
+      var sid = "fec-"+fn.replace(/[^a-zA-Z0-9]/g,"")+"-"+String(k).replace(/[^a-zA-Z0-9]/g,"");
+      var itens = g.itens.map(function(m){
+        var det = m.tipo==="integracao" ? ("Integração · "+m.qtd+" dia(s)")
+          : m.tipo==="vtSabado" ? ("VT sábado · "+m.qtd)
+          : (m.pai+" · "+m.item+" · "+(m.trecho||"-")+" · "+m.qtd);
+        return '<div class="grid grid-cols-12 gap-2 text-sm py-2 border-t items-center"><div class="col-span-8 text-slate-600">'+det+'</div><div class="col-span-4 text-right font-medium">'+money(m.valor)+'</div></div>';
+      }).join("");
+      return '<div class="border-t border-slate-100">'+
+        '<button onclick="toggleFunc(\''+sid+'\')" class="w-full text-left px-4 py-3 hover:bg-slate-50">'+
+          '<div class="grid grid-cols-12 gap-2 items-center">'+
+            '<div class="col-span-12 md:col-span-5"><p class="font-medium text-slate-800">'+g.chapa+' · '+g.nome+'</p><p class="text-[11px] text-slate-400">'+g.itens.length+' item(ns)</p></div>'+
+            '<div class="col-span-4 md:col-span-2 text-sm"><p class="text-[10px] text-slate-400">Tarefa</p><p class="font-semibold">'+money(c.tarefa)+'</p></div>'+
+            '<div class="col-span-4 md:col-span-2 text-sm"><p class="text-[10px] text-emerald-600">Prêmio</p><p class="font-semibold text-emerald-700">'+money(c.premio)+'</p></div>'+
+            '<div class="col-span-4 md:col-span-3 text-sm md:text-right"><p class="text-[10px] text-slate-400">Custo M.O.</p><p class="font-semibold text-blue-700">'+money(c.custo)+'</p></div>'+
+          '</div></button>'+
+        '<div id="'+sid+'" class="hidden px-4 pb-4 bg-slate-50 border-t">'+
+          '<p class="text-[11px] uppercase text-slate-400 pt-3 mb-1">Itens lançados</p>'+itens+
+          '<div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs mt-3">'+
+            '<div class="bg-white border rounded-lg p-2"><p class="text-slate-400">Salário tarefa (e)</p><p class="font-semibold">'+money(c.tarefa)+'</p></div>'+
+            '<div class="bg-white border rounded-lg p-2"><p class="text-slate-400">Tributado (c)</p><p class="font-semibold">'+money(c.tributado)+'</p></div>'+
+            '<div class="bg-white border rounded-lg p-2"><p class="text-slate-400">c/ Encargos (d)</p><p class="font-semibold">'+money(c.encargos)+'</p></div>'+
+            '<div class="bg-white border rounded-lg p-2"><p class="text-slate-400">Prêmio (h)</p><p class="font-semibold text-emerald-700">'+money(c.premio)+'</p></div>'+
+            '<div class="bg-white border rounded-lg p-2"><p class="text-slate-400">Vale</p><p class="font-semibold">'+money(c.vale)+'</p></div>'+
+            '<div class="bg-white border rounded-lg p-2"><p class="text-slate-400">Custo total M.O.</p><p class="font-semibold text-blue-700">'+money(c.custo)+'</p></div>'+
+          '</div></div></div>';
+    }).join("");
+
+    return '<section class="bg-white rounded-2xl border-2 border-slate-300 overflow-hidden shadow-sm">'+
+      '<header class="px-5 py-4 bg-slate-800 text-white flex flex-wrap justify-between items-center gap-3">'+
+        '<div><p class="text-[11px] uppercase tracking-wide text-slate-300">Função</p><h3 class="font-bold text-lg">'+fn+'</h3><p class="text-[11px] text-slate-300">'+keys.length+' funcionário(s)</p></div>'+
+        '<div class="flex gap-6 text-right text-sm">'+
+          '<div><p class="text-[10px] text-slate-300">Tarefa</p><p class="font-semibold">'+money(subT)+'</p></div>'+
+          '<div><p class="text-[10px] text-emerald-300">Prêmio</p><p class="font-semibold text-emerald-300">'+money(subP)+'</p></div>'+
+          '<div><p class="text-[10px] text-sky-300">Custo</p><p class="font-semibold text-sky-300">'+money(subC)+'</p></div>'+
+        '</div></header>'+
+      '<div class="divide-y-2 divide-slate-200">'+linhas+'</div></section>';
+  }).join("");
+}
+
+function render(){
+  if(view==="cadastro") renderCadastro();
+  else if(view==="liberacao") renderLiberacao();
+  else if(view==="lancamento") renderLancamento();
+  else if(view==="saldo") renderSaldo();
+  else renderFechar();
+}
+
+function renderSaldo(){
+  var box = document.getElementById("listaSaldo");
+  if(!box) return;
+  if(!db.filhos.length){
+    box.innerHTML = '<div class="bg-white rounded-2xl border p-6 text-sm text-slate-500">Cadastre a obra primeiro.</div>';
+    return;
+  }
+  box.innerHTML = db.pais.map(function(p){
+    var filhos = filhosDoPai(p.id);
+    if(!filhos.length) return "";
+    var cards = filhos.map(function(f){
+      var libs = f.liberacoes||[];
+      if(!libs.length){
+        var funs = ativas(f.funcoes).map(function(x){
+          return '<div class="flex justify-between text-xs py-1"><span>'+x[0]+'</span><span>0 / '+f.qtd+' '+f.un+' liberado</span></div>';
+        }).join("");
+        return '<div class="border-2 border-slate-200 rounded-xl p-4 mb-3 bg-slate-50"><p class="font-semibold">'+f.nome+'</p><p class="text-[11px] text-slate-500 mb-2">Previsto '+f.qtd+' '+f.un+' · nada liberado</p>'+funs+'</div>';
+      }
+      return libs.map(function(l){
+        var rows = saldosPorFuncao(f,l).map(function(s){
+          var pct = s.teto ? Math.round(s.medido/s.teto*100) : 0;
+          return '<div class="mt-2"><div class="flex justify-between text-xs mb-1"><span class="font-medium">'+s.funcao+'</span><span>medido '+s.medido+' · saldo '+s.saldo+' / '+s.teto+' '+f.un+'</span></div>'+
+            '<div class="h-2 bg-slate-100 rounded-full"><div class="h-full bg-blue-600 rounded-full" style="width:'+pct+'%"></div></div></div>';
+        }).join("");
+        return '<div class="border-2 border-slate-200 rounded-xl p-4 mb-3"><p class="font-semibold">'+f.nome+' · '+l.trecho+'</p><p class="text-[11px] text-slate-500 mb-1">Teto '+l.qtd+' '+f.un+' por função</p>'+rows+'</div>';
+      }).join("");
+    }).join("");
+    return '<section class="bg-white rounded-2xl border-2 border-slate-300 overflow-hidden shadow-sm"><header class="px-5 py-4 bg-slate-800 text-white"><p class="text-[11px] uppercase text-slate-300">Serviço pai</p><h3 class="font-bold text-lg">'+p.nome+'</h3></header><div class="p-4">'+cards+'</div></section>';
+  }).join("") || '<div class="bg-white rounded-2xl border p-6 text-sm text-slate-500">Nada para mostrar.</div>';
+}
+
+aplicarAcesso();
+if(sessao){ ir(sessao.role==="apontador"?"lancamento":"cadastro"); }
+</script>
+</body>
+</html>
