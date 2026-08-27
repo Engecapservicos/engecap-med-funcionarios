@@ -104,12 +104,20 @@
 
     <div id="viewCadastro" class="hidden">
       <section class="bg-white rounded-2xl border p-5 mb-5">
-        <h2 class="font-semibold mb-3">1. Dados da obra</h2>
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="font-semibold">1. Dados da obra</h2>
+          <button onclick="salvarDadosObra()" class="bg-slate-800 text-white text-sm px-4 py-2 rounded-lg">Salvar obra</button>
+        </div>
         <div class="grid md:grid-cols-4 gap-3 text-sm">
-          <input class="border rounded-lg px-3 py-2" value="329" />
-          <input class="border rounded-lg px-3 py-2" value="Arizona" />
-          <input class="border rounded-lg px-3 py-2" value="EVEN" />
-          <select class="border rounded-lg px-3 py-2 bg-white"><option>Estrutura</option></select>
+          <input id="obraCodigo" placeholder="Código" class="border rounded-lg px-3 py-2" />
+          <input id="obraNome" placeholder="Nome" class="border rounded-lg px-3 py-2" />
+          <input id="obraCliente" placeholder="Cliente" class="border rounded-lg px-3 py-2" />
+          <select id="obraTipo" class="border rounded-lg px-3 py-2 bg-white">
+            <option>Estrutura</option>
+            <option>Alvenaria</option>
+            <option>Acabamento</option>
+            <option>Outros</option>
+          </select>
         </div>
       </section>
       <div class="grid md:grid-cols-12 gap-5">
@@ -782,7 +790,47 @@ function excluirMed(id){
   save(); render();
 }
 
+function preencherDadosObra(){
+  var o = (store.obras||[]).find(function(x){ return x.id===store.obraId; });
+  var c = document.getElementById("obraCodigo");
+  if(!c) return;
+  c.value = o ? (o.codigo||"") : "";
+  document.getElementById("obraNome").value = o ? (o.nome||"") : "";
+  document.getElementById("obraCliente").value = o ? (o.cliente||"") : "";
+  document.getElementById("obraTipo").value = o && o.tipo ? o.tipo : "Estrutura";
+}
+function salvarDadosObra(){
+  if(!store.obraId) return alert("Abre uma obra primeiro");
+  var o = store.obras.find(function(x){ return x.id===store.obraId; });
+  if(!o) return;
+  o.codigo = (document.getElementById("obraCodigo").value||"").trim();
+  o.nome = (document.getElementById("obraNome").value||"").trim();
+  o.cliente = (document.getElementById("obraCliente").value||"").trim();
+  o.tipo = document.getElementById("obraTipo").value;
+  if(!o.nome) return alert("Nome da obra");
+  saveStore();
+  if(typeof addLog==="function") addLog("Atualizou obra "+o.codigo+" "+o.nome);
+  renderHeader();
+  alert("Obra salva.");
+}
+function excluirObra(id, ev){
+  if(ev) ev.stopPropagation();
+  var o = (store.obras||[]).find(function(x){ return x.id===id; });
+  if(!o) return;
+  if(!confirm("Excluir a obra "+o.nome+" e as medições dela?")) return;
+  store.obras = store.obras.filter(function(x){ return x.id!==id; });
+  Object.keys(store.dados||{}).forEach(function(k){
+    if(k.indexOf(id+"|")===0) delete store.dados[k];
+  });
+  if(store.cadastro) delete store.cadastro[id];
+  if(store.obraId===id) store.obraId = null;
+  saveStore();
+  if(typeof addLog==="function") addLog("Excluiu obra "+o.nome);
+  ir("home");
+}
 function renderCadastro(){
+  preencherDadosObra();
+
   document.getElementById("listaPais").innerHTML = db.pais.map(function(p){
     var lista = filhosDoPai(p.id);
     var valor = lista.reduce(function(a,f){ return a+tot(f.funcoes,f.qtd); },0);
@@ -1224,7 +1272,7 @@ function preencherSelectPeriodo(sel){
 }
 function renderHeader(){
   var o = (store.obras||[]).find(function(x){ return x.id===store.obraId; });
-  document.getElementById("subObra").textContent = o ? (o.codigo+" · "+o.nome) : "Minhas obras";
+  document.getElementById("subObra").textContent = (view==="home" || !o) ? "Minhas obras" : (o.codigo+" · "+o.nome);
   var sel = document.getElementById("selPeriodo");
   if(sel){
     sel.classList.toggle("hidden", view==="home" || !o);
@@ -1357,9 +1405,11 @@ function renderHome(){
     return;
   }
   box.innerHTML = obras.map(function(o){
-    return '<button onclick="abrirObra(\''+o.id+'\')" class="text-left bg-white rounded-2xl border-2 border-slate-200 p-5 hover:border-blue-400">'+
+    return '<div class="bg-white rounded-2xl border-2 border-slate-200 p-5 hover:border-blue-400 relative">'+
+      '<button onclick="excluirObra(\''+o.id+'\',event)" class="absolute top-3 right-3 text-xs text-slate-400 hover:text-red-600">excluir</button>'+
+      '<button onclick="abrirObra(\''+o.id+'\')" class="text-left w-full">'+
       '<p class="text-3xl mb-2">🏗️</p><p class="font-bold">'+o.nome+'</p>'+
-      '<p class="text-xs text-slate-500">'+((o.codigo||"")+" · "+(o.cliente||""))+'</p></button>';
+      '<p class="text-xs text-slate-500">'+((o.codigo||"")+" · "+(o.cliente||""))+'</p></button></div>';
   }).join("");
 }
 
