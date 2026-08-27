@@ -33,16 +33,19 @@
   <div class="max-w-6xl mx-auto py-6 px-4">
     <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
       <div>
-        <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide">329 · Arizona · EVEN</p>
-        <h1 id="titulo" class="text-2xl font-bold">Cadastro de obra</h1>
+        <p id="subObra" class="text-xs text-slate-400 font-semibold uppercase tracking-wide">Minhas obras</p>
+        <h1 id="titulo" class="text-2xl font-bold">Obras</h1>
       </div>
-      <div class="flex flex-wrap gap-2">
+      <div class="flex flex-wrap gap-2 items-center">
+        <button onclick="ir('home')" id="navHome" class="px-3 py-2 rounded-lg text-sm font-medium bg-white border">Obras</button>
+        <select id="selPeriodo" onchange="trocarPeriodo(this.value)" class="hidden border rounded-lg px-2 py-2 text-sm bg-white"></select>
         <button onclick="ir('cadastro')" id="navCad" class="px-3 py-2 rounded-lg text-sm font-medium bg-white border">Cadastro</button>
         <button onclick="ir('liberacao')" id="navLib" class="px-3 py-2 rounded-lg text-sm font-medium bg-white border">Liberação</button>
         <button onclick="ir('lancamento')" id="navLan" class="px-3 py-2 rounded-lg text-sm font-medium bg-white border">Lançar medição</button>
         <button onclick="ir('fechar')" id="navFec" class="px-3 py-2 rounded-lg text-sm font-medium bg-white border">Resumo de medições</button>
         <button onclick="ir('saldo')" id="navSal" class="px-3 py-2 rounded-lg text-sm font-medium bg-white border">Controle de saldo</button>
         <button onclick="resetar()" class="px-3 py-2 rounded-lg text-sm border text-slate-500">Reset dados</button>
+        <a href="/admin" id="navAdm" class="hidden px-3 py-2 rounded-lg text-sm bg-slate-800 text-white">Admin</a>
         <span id="userChip" class="hidden text-xs px-3 py-2 rounded-lg bg-slate-800 text-white"></span>
         <button onclick="sair()" class="hidden px-3 py-2 rounded-lg text-sm border" id="btnSair">Sair</button>
       </div>
@@ -276,7 +279,7 @@ function load(){
     return JSON.parse(JSON.stringify(seed));
   }
 }
-function save(){ localStorage.setItem(KEY, JSON.stringify(db)); }
+function save(){ localStorage.setItem(KEY, JSON.stringify(db)); salvarDbNaObra(); }
 function resetar(){
   if(!confirm("Zerar os dados de teste?")) return;
   localStorage.removeItem(KEY);
@@ -284,8 +287,25 @@ function resetar(){
   paiSel = db.pais[0].id;
   save();
   aplicarAcesso();
-if(sessao){ ir(sessao.role==="apontador"?"lancamento":"cadastro"); }
+if(sessao){ ir("home"); }
 }
+
+
+const STORE_KEY = "engecap_mo_store_v1";
+function loadStore(){
+  try {
+    var raw = localStorage.getItem(STORE_KEY);
+    if(raw) return JSON.parse(raw);
+  } catch(e){}
+  return {
+    obras: [{id:"o329", codigo:"329", nome:"Arizona", cliente:"EVEN"}],
+    obraId: null,
+    periodo: "2026-08",
+    dados: {}
+  };
+}
+function saveStore(){ localStorage.setItem(STORE_KEY, JSON.stringify(store)); }
+let store = loadStore();
 
 let db = load();
 let paiSel = db.pais[0] ? db.pais[0].id : null;
@@ -296,16 +316,16 @@ let funcionarioAtual = null;
 let sessao = JSON.parse(localStorage.getItem("engecap_mo_sessao")||"null");
 
 const USERS = [
-  { email:"admin@obra.local", senha:"admin123", role:"admin" },
-  { email:"engenheiro@obra.local", senha:"123456", role:"engenheiro" },
-  { email:"apontador@obra.local", senha:"123456", role:"apontador" }
+  { email:"admin@engecap.com", senha:"admin123", role:"admin", user:"admin" },
+  { email:"engenheiro@engecap.com", senha:"123456", role:"engenheiro", user:"engenheiro" },
+  { email:"apontador@engecap.com", senha:"123456", role:"apontador", user:"apontador" }
 ];
 
 function pode(tela){
   if(!sessao) return false;
   if(sessao.role==="admin") return true;
-  if(sessao.role==="engenheiro") return ["cadastro","liberacao","fechar","saldo"].indexOf(tela)>=0;
-  if(sessao.role==="apontador") return tela==="lancamento";
+  if(sessao.role==="engenheiro") return ["home","cadastro","liberacao","fechar","saldo"].indexOf(tela)>=0;
+  if(sessao.role==="apontador") return ["home","lancamento"].indexOf(tela)>=0;
   return false;
 }
 function aplicarAcesso(){
@@ -317,29 +337,33 @@ function aplicarAcesso(){
   login.style.display = "none";
   document.getElementById("userChip").classList.remove("hidden");
   document.getElementById("btnSair").classList.remove("hidden");
-  document.getElementById("userChip").textContent = sessao.role + " · " + sessao.email;
-  var map = {cadastro:"navCad", liberacao:"navLib", lancamento:"navLan", fechar:"navFec", saldo:"navSal"};
+  document.getElementById("userChip").textContent = sessao.role + " · " + (sessao.user||sessao.email);
+  var map = {home:"navHome", cadastro:"navCad", liberacao:"navLib", lancamento:"navLan", fechar:"navFec", saldo:"navSal"};
   Object.keys(map).forEach(function(tela){
     var el = document.getElementById(map[tela]);
     if(!el) return;
     el.classList.toggle("hidden", !pode(tela));
   });
+  var adm = document.getElementById("navAdm");
+  if(adm) adm.classList.toggle("hidden", sessao.role!=="admin");
 }
+
 function fazerLogin(){
   var email = (document.getElementById("loginEmail").value||"").trim();
   var senha = document.getElementById("loginSenha").value||"";
-  var u = USERS.find(function(x){ return x.email===email && x.senha===senha; });
+  var raw = (email||"").trim();
+  var mail = raw.indexOf("@")>=0 ? raw : raw+"@engecap.com";
+  var u = USERS.find(function(x){ return (x.email===mail || x.user===raw) && x.senha===senha; });
   var box = document.getElementById("loginErro");
   if(!u){
     box.textContent = "Usuário ou senha inválidos.";
     box.classList.remove("hidden");
     return;
   }
-  sessao = { email:u.email, role:u.role };
+  sessao = { email:u.email, role:u.role, user:u.user||u.email.split("@")[0] };
   localStorage.setItem("engecap_mo_sessao", JSON.stringify(sessao));
   aplicarAcesso();
-  var home = sessao.role==="apontador" ? "lancamento" : "cadastro";
-  ir(home);
+  ir("home");
 }
 function sair(){
   sessao = null;
@@ -359,14 +383,15 @@ function ir(v){
     return;
   }
   view = v;
+  document.getElementById("viewHome").classList.toggle("hidden", v!=="home");
   document.getElementById("viewCadastro").classList.toggle("hidden", v!=="cadastro");
   document.getElementById("viewLiberacao").classList.toggle("hidden", v!=="liberacao");
   document.getElementById("viewLancamento").classList.toggle("hidden", v!=="lancamento");
   document.getElementById("viewFechar").classList.toggle("hidden", v!=="fechar");
   document.getElementById("viewSaldo").classList.toggle("hidden", v!=="saldo");
-  var titles = {cadastro:"Cadastro de obra", liberacao:"Liberação de fase", lancamento:"Lançar medição", fechar:"Resumo de medições", saldo:"Controle de saldo"};
+  var titles = {home:"Obras", cadastro:"Cadastro de obra", liberacao:"Liberação de fase", lancamento:"Lançar medição", fechar:"Resumo de medições", saldo:"Controle de saldo"};
   document.getElementById("titulo").textContent = titles[v] || v;
-  var map = {cadastro:"navCad", liberacao:"navLib", lancamento:"navLan", fechar:"navFec", saldo:"navSal"};
+  var map = {home:"navHome", cadastro:"navCad", liberacao:"navLib", lancamento:"navLan", fechar:"navFec", saldo:"navSal"};
   Object.keys(map).forEach(function(name){
     var el = document.getElementById(map[name]);
     if(el) el.className = "px-3 py-2 rounded-lg text-sm font-medium " + (v===name ? "bg-blue-600 text-white" : "bg-white border");
@@ -1003,12 +1028,111 @@ function renderFechar(){
 }
 
 function render(){
-  if(view==="cadastro") renderCadastro();
+  renderHeader();
+  if(view==="home") renderHome();
+  else if(view==="cadastro") renderCadastro();
   else if(view==="liberacao") renderLiberacao();
   else if(view==="lancamento") renderLancamento();
   else if(view==="saldo") renderSaldo();
   else renderFechar();
 }
+
+function meses(){
+  var out=[];
+  var d=new Date(2026,0,1);
+  for(var i=0;i<24;i++){
+    var y=d.getFullYear(), m=d.getMonth()+1;
+    var k=y+"-"+(m<10?"0"+m:""+m);
+    out.push({k:k, l:(m<10?"0"+m:""+m)+"/"+y});
+    d.setMonth(d.getMonth()+1);
+  }
+  return out;
+}
+
+function renderHeader(){
+  var o = (store.obras||[]).find(function(x){ return x.id===store.obraId; });
+  document.getElementById("subObra").textContent = o ? (o.codigo+" · "+o.nome) : "Minhas obras";
+  var sel = document.getElementById("selPeriodo");
+  if(!sel) return;
+  sel.classList.toggle("hidden", view==="home" || !o);
+  if(o){
+    sel.innerHTML = meses().map(function(x){
+      return '<option value="'+x.k+'" '+(x.k===store.periodo?'selected':'')+'>'+x.l+'</option>';
+    }).join("");
+  }
+}
+
+function renderHome(){
+  var box = document.getElementById("listaObras");
+  var obras = store.obras||[];
+  if(!obras.length){
+    box.innerHTML = '<div class="col-span-3 bg-white rounded-2xl border p-6 text-sm text-slate-500">Nenhuma obra. Engenheiro clica em + Nova obra.</div>';
+    return;
+  }
+  box.innerHTML = obras.map(function(o){
+    return '<button onclick="abrirObra(\''+o.id+'\')" class="text-left bg-white rounded-2xl border-2 border-slate-200 p-5 hover:border-blue-400">'+
+      '<p class="text-3xl mb-2">🏗️</p><p class="font-bold">'+o.nome+'</p>'+
+      '<p class="text-xs text-slate-500">'+((o.codigo||"")+" · "+(o.cliente||""))+'</p></button>';
+  }).join("");
+}
+
+function novaObra(){
+  if(sessao && sessao.role==="apontador") return alert("Apontador não cadastra obra");
+  var codigo = prompt("Código da obra (ex: 329)");
+  if(!codigo) return;
+  var nome = prompt("Nome da obra");
+  if(!nome) return;
+  var cliente = prompt("Cliente")||"";
+  store.obras.push({id:"o"+Date.now(), codigo:codigo.trim(), nome:nome.trim(), cliente:cliente.trim()});
+  saveStore();
+  renderHome();
+}
+
+function abrirObra(id){
+  store.obraId = id;
+  if(!store.periodo) store.periodo = "2026-08";
+  saveStore();
+  carregarDbDaObra();
+  ir(sessao.role==="apontador"?"lancamento":"cadastro");
+}
+
+function trocarPeriodo(k){
+  salvarDbNaObra();
+  store.periodo = k;
+  saveStore();
+  carregarDbDaObra();
+  render();
+}
+
+function vazioDb(){
+  return { pais:[], filhos:[], medicoes:[] };
+}
+
+function chaveDados(){
+  return store.obraId+"|"+store.periodo;
+}
+
+function carregarDbDaObra(){
+  store.dados = store.dados||{};
+  var k = chaveDados();
+  if(!store.dados[k]) store.dados[k] = (store.obraId && store.obras[0] && store.obras[0].id===store.obraId && store.periodo==="2026-08")
+    ? JSON.parse(JSON.stringify(db.pais && db.pais.length ? {pais:db.pais,filhos:db.filhos,medicoes:db.medicoes||[]} : seed))
+    : vazioDb();
+  // first open of Arizona seed
+  if(!store.dados[k].pais) store.dados[k] = vazioDb();
+  db = store.dados[k];
+  if(!db.medicoes) db.medicoes=[];
+  (db.filhos||[]).forEach(function(f){ if(!f.liberacoes) f.liberacoes=[]; });
+  paiSel = db.pais[0] ? db.pais[0].id : null;
+}
+
+function salvarDbNaObra(){
+  if(!store.obraId || !store.periodo) return;
+  store.dados = store.dados||{};
+  store.dados[chaveDados()] = db;
+  saveStore();
+}
+
 
 function renderSaldo(){
   var box = document.getElementById("listaSaldo");
@@ -1042,7 +1166,7 @@ function renderSaldo(){
 }
 
 aplicarAcesso();
-if(sessao){ ir(sessao.role==="apontador"?"lancamento":"cadastro"); }
+if(sessao){ ir("home"); }
 </script>
 </body>
 </html>
