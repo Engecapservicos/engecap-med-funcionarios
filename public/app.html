@@ -1427,6 +1427,37 @@ function loadUsers(){
     {id:3, user:"apontador", senha:"123456", role:"apontador", active:true}
   ];
 }
+
+async function tokenSb(){
+  if(!sbOn()) return null;
+  var s = await sb.auth.getSession();
+  return s.data && s.data.session && s.data.session.access_token;
+}
+async function apiUsers(method, body, qs){
+  var tok = await tokenSb();
+  if(!tok) throw new Error("Sem sessão na nuvem");
+  var url = "/api/admin/users" + (qs||"");
+  var r = await fetch(url, {
+    method: method,
+    headers: { "Content-Type":"application/json", Authorization:"Bearer "+tok },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  var j = await r.json().catch(function(){ return {}; });
+  if(!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+async function loadUsersCloud(){
+  try{
+    var j = await apiUsers("GET");
+    if(j.users){
+      USERS_DB = j.users.map(function(u){
+        return {id:u.id, user:(u.email||"").split("@")[0], email:u.email, senha:"", role:u.role, active:u.active!==false};
+      });
+    }
+  }catch(e){
+    console.warn(e);
+  }
+}
 function saveUsers(){ localStorage.setItem("engecap_mo_users", JSON.stringify(USERS_DB)); }
 let USERS_DB = loadUsers();
 
@@ -1445,6 +1476,18 @@ function criarUser(ev){
   var senha = document.getElementById("admSenha").value||"";
   var role = document.getElementById("admRole").value;
   if(!user || !senha) { alert("Usuário e senha"); return false; }
+  var mail = user.indexOf("@")>=0 ? user : user+"@engecap.com";
+  if(sbOn()){
+    apiUsers("POST", { email:mail, senha:senha, role:role }).then(function(){
+      addLog("Criou na nuvem "+user+" ("+role+")");
+      document.getElementById("admUser").value="";
+      document.getElementById("admSenha").value="";
+      window._usersCloudOnce = false;
+      loadUsersCloud().then(function(){ renderAdmin(); });
+      alert("Usuário criado na nuvem.");
+    }).catch(function(e){ alert("Nuvem: "+e.message); });
+    return false;
+  }
   if(USERS_DB.some(function(u){ return u.user===user; })) { alert("Usuário já existe"); return false; }
   USERS_DB.push({id:Date.now(), user:user, senha:senha, role:role, active:true});
   saveUsers();
@@ -1460,6 +1503,15 @@ function salvarUser(id){
   u.role = document.getElementById("role-"+id).value;
   u.active = document.getElementById("atv-"+id).checked;
   var ns = document.getElementById("sen-"+id).value;
+  if(sbOn()){
+    apiUsers("PATCH", { id:u.id, role:u.role, active:u.active, senha:ns||undefined }).then(function(){
+      addLog("Editou na nuvem "+u.user);
+      window._usersCloudOnce = false;
+      loadUsersCloud().then(function(){ renderAdmin(); });
+      alert("Acesso atualizado na nuvem.");
+    }).catch(function(e){ alert("Nuvem: "+e.message); });
+    return;
+  }
   if(ns) u.senha = ns;
   saveUsers();
   addLog("Editou "+u.user+" → "+u.role+" / "+(u.active?"ativo":"inativo"));
@@ -1470,6 +1522,14 @@ function excluirUser(id){
   if(!u) return;
   if(u.user==="admin") return alert("Não exclui o admin principal");
   if(!confirm("Excluir "+u.user+"?")) return;
+  if(sbOn()){
+    apiUsers("DELETE", null, "?id="+encodeURIComponent(u.id)).then(function(){
+      addLog("Excluiu na nuvem "+u.user);
+      window._usersCloudOnce = false;
+      loadUsersCloud().then(function(){ renderAdmin(); });
+    }).catch(function(e){ alert("Nuvem: "+e.message); });
+    return;
+  }
   USERS_DB = USERS_DB.filter(function(x){ return x.id!==id; });
   saveUsers();
   addLog("Excluiu usuário "+u.user);
@@ -1478,6 +1538,10 @@ function excluirUser(id){
 function renderAdmin(){
   var box = document.getElementById("listaUsers");
   if(!box) return;
+  if(sbOn() && !window._usersCloudOnce){
+    window._usersCloudOnce = true;
+    loadUsersCloud().then(function(){ renderAdmin(); });
+  }
   box.innerHTML = USERS_DB.map(function(u){
     return '<div class="px-4 py-3 border-t flex flex-wrap gap-2 items-center">'+
       '<div class="flex-1 min-w-[120px]"><p class="font-semibold">'+u.user+'</p><p class="text-[11px] text-slate-400">id '+u.id+'</p></div>'+
