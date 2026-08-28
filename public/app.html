@@ -236,7 +236,10 @@
       </section>
       <div id="listaLan" class="space-y-4 mb-6"></div>
       <section class="bg-white rounded-2xl border-2 border-slate-300 p-5">
-        <h3 class="font-semibold text-sm mb-3">Medições já lançadas</h3>
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="font-semibold text-sm">Medições já lançadas</h3>
+          <button onclick="imprimirTodasFolhas()" class="text-sm border px-3 py-1.5 rounded-lg">🖨️ Folhas do período</button>
+        </div>
         <div id="listaMed" class="text-sm text-slate-500">Nenhuma ainda.</div>
       </section>
     </div>
@@ -415,14 +418,16 @@ async function cloudLogin(user, senha){
   var r = await sb.auth.signInWithPassword({ email: mail, password: senha });
   if(r.error) throw new Error(r.error.message);
   var uid = r.data.user.id;
-  var pr = await sb.from("profiles").select("role,email").eq("id", uid).single();
-  var role = pr.data && pr.data.role;
+  var pr = await sb.from("profiles").select("role,email,active").eq("id", uid).maybeSingle();
+  var meta = (r.data.user.user_metadata)||{};
   var u = mail.split("@")[0];
+  var role = (pr.data && pr.data.role) || meta.role || "";
   if(!role){
     if(u==="admin") role = "admin";
     else if(u==="engenheiro") role = "engenheiro";
     else role = "apontador";
   }
+  if(pr.data && pr.data.active===false) throw new Error("Usuário inativo");
   return { email: r.data.user.email, role: role, user: u };
 }
 async function cloudLoadFuncionarios(){
@@ -741,10 +746,13 @@ function removerFilho(id){
 }
 
 function liberar(id){
-  var f = db.filhos.find(function(x){ return x.id===id; });
+  var f = db.filhos.find(function(x){ return String(x.id)===String(id); });
+  if(!f) return alert("Item não encontrado");
   if(!f.liberacoes) f.liberacoes = [];
-  var q = parseFloat(document.getElementById("lib-"+id).value);
-  var trecho = (document.getElementById("trecho-"+id).value||"").trim();
+  var qEl = document.getElementById("lib-"+id);
+  var tEl = document.getElementById("trecho-"+id);
+  var q = parseFloat(qEl && qEl.value);
+  var trecho = ((tEl && tEl.value)||"").trim();
   var saldo = f.qtd - somaLib(f);
   if(!q || q<=0) return alert("Informa a quantidade");
   if(!trecho) return alert("Identifica o trecho. Ex: Trecho B");
@@ -753,10 +761,11 @@ function liberar(id){
     id: Date.now(),
     qtd: q,
     trecho: trecho,
-    periodo: document.getElementById("periodo").value
+    periodo: store.periodo,
+    periodoLabel: labelFolha(store.periodo)
   });
-  document.getElementById("lib-"+id).value = "";
-  document.getElementById("trecho-"+id).value = "";
+  if(qEl) qEl.value = "";
+  if(tEl) tEl.value = "";
   save(); render();
 }
 function editarLib(filhoId, libId){
@@ -1171,7 +1180,7 @@ function renderLancamento(){
       return '<div class="border-t first:border-0">'+
         '<button onclick="toggleFunc(\''+sid+'\')" class="w-full flex justify-between items-center px-3 py-3 text-left hover:bg-slate-50">'+
           '<div><p class="font-medium">'+g.chapa+' · '+g.nome+'</p><p class="text-xs text-slate-500">'+g.itens.length+' lançamento(s)</p></div>'+
-          '<p class="font-semibold">'+money(g.total)+'</p></button>'+
+          '<div class="flex items-center gap-2"><button onclick="event.stopPropagation();imprimirFolha(\''+String(g.chapa).replace(/'/g,"")+'\')" class="text-xs border px-2 py-1 rounded">🖨️ folha</button><p class="font-semibold">'+money(g.total)+'</p></div></button>'+
         '<div id="'+sid+'" class="hidden px-3 pb-2 bg-slate-50">'+itens+'</div></div>';
     }).join("");
     return '<div class="border-2 border-slate-300 rounded-xl mb-4 overflow-hidden">'+
@@ -1180,6 +1189,76 @@ function renderLancamento(){
         '<p class="font-semibold">'+money(subtotal)+'</p></div>'+
       '<div class="divide-y-2 divide-slate-200">'+pessoas+'</div></div>';
   }).join("");
+}
+
+
+function dadosObraAtual(){
+  return (store.obras||[]).find(function(x){ return x.id===store.obraId; }) || {codigo:"", nome:"", cliente:""};
+}
+function htmlFolha(chapa, meds){
+  var o = dadosObraAtual();
+  var nome = (meds[0]&&meds[0].funcionario)||"";
+  var funcao = (meds[0]&&meds[0].funcao)||"";
+  var serv = meds.filter(function(m){ return !m.tipo || (m.tipo!=="integracao" && m.tipo!=="vtSabado" && m.tipo!=="extra"); });
+  var extras = meds.filter(function(m){ return m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra"; });
+  var tot = meds.reduce(function(a,m){ return a+Number(m.valor||0); },0);
+  var linhas = serv.map(function(m,i){
+    return "<tr><td>"+(i+1)+"</td><td>"+(m.pai||"")+"</td><td>"+(m.item||"")+"</td><td>"+(m.trecho||"-")+"</td><td>"+(m.qtd||"")+" "+(m.un||"")+"</td><td>"+money(m.vu||0)+"</td><td>"+money(m.valor)+"</td></tr>";
+  }).join("");
+  var extraTxt = extras.map(function(m){
+    var lab = m.tipo==="integracao"?"Integração":(m.tipo==="vtSabado"?"VT sábado":m.item);
+    return lab+" · "+m.qtd+" · "+money(m.valor);
+  }).join("<br>") || "—";
+  return '<div class="folha">'+
+    '<div class="topo"><div><strong>ENGECAP</strong><div class="m">Folha de medição de M.O.</div></div>'+
+    '<div class="m">'+o.codigo+' · '+o.nome+'<br>'+(o.cliente||"")+'<br>Competência '+(store.periodo||"")+' · '+labelFolha(store.periodo)+'</div></div>'+
+    '<p><strong>Chapa:</strong> '+chapa+' &nbsp; <strong>Nome:</strong> '+nome+' &nbsp; <strong>Função:</strong> '+funcao+'</p>'+
+    '<table><thead><tr><th>#</th><th>Grupo</th><th>Serviço</th><th>Trecho</th><th>Qtde</th><th>Unit.</th><th>Total</th></tr></thead><tbody>'+
+    (linhas||'<tr><td colspan="7">Sem serviço produtivo</td></tr>')+
+    '</tbody></table>'+
+    '<p class="m"><strong>Vales:</strong> '+extraTxt+'</p>'+
+    '<p><strong>Total da folha: '+money(tot)+'</strong></p>'+
+    '<div class="ass">'+
+      '<div>Apontador<br><span></span></div>'+
+      '<div>Funcionário<br><span></span></div>'+
+      '<div>Engenharia<br><span></span></div>'+
+    '</div></div>';
+}
+function abrirImpressao(html){
+  var w = window.open("", "_blank");
+  if(!w) return alert("Libera pop-up para imprimir");
+  w.document.write('<html><head><title>Folha de medição</title><style>'+
+    'body{font-family:Arial,sans-serif;padding:18px;color:#111}'+
+    '.folha{page-break-after:always;margin-bottom:28px}'+
+    '.topo{display:flex;justify-content:space-between;border-bottom:2px solid #102a43;padding-bottom:8px;margin-bottom:12px}'+
+    'table{width:100%;border-collapse:collapse;margin:10px 0;font-size:13px}'+
+    'th,td{border:1px solid #ccc;padding:6px;text-align:left}'+
+    'th{background:#102a43;color:#fff}'+
+    '.m{font-size:12px;color:#333}'+
+    '.ass{display:flex;gap:24px;margin-top:36px}'+
+    '.ass div{flex:1;text-align:center;font-size:12px}'+
+    '.ass span{display:block;border-top:1px solid #111;margin-top:40px;padding-top:6px}'+
+    '@media print{.folha{page-break-after:always}}'+
+    '</style></head><body>'+html+'<script>window.onload=function(){window.print()}<\/script></body></html>');
+  w.document.close();
+}
+function imprimirFolha(chapa){
+  var meds = (db.medicoes||[]).filter(function(m){ return String(m.chapa)===String(chapa); });
+  if(!meds.length) return alert("Sem lançamento nessa chapa");
+  abrirImpressao(htmlFolha(chapa, meds));
+}
+function imprimirTodasFolhas(){
+  var meds = db.medicoes||[];
+  var chapas = [];
+  meds.forEach(function(m){
+    var c = String(m.chapa||"");
+    if(c && chapas.indexOf(c)<0) chapas.push(c);
+  });
+  if(!chapas.length) return alert("Nenhuma medição no período");
+  var html = chapas.map(function(c){
+    return htmlFolha(c, meds.filter(function(m){ return String(m.chapa)===c; }));
+  }).join("");
+  abrirImpressao(html);
 }
 
 function toggleFunc(id){
