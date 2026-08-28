@@ -746,27 +746,40 @@ function removerFilho(id){
 }
 
 function liberar(id){
-  var f = db.filhos.find(function(x){ return String(x.id)===String(id); });
-  if(!f) return alert("Item não encontrado");
-  if(!f.liberacoes) f.liberacoes = [];
-  var qEl = document.getElementById("lib-"+id);
-  var tEl = document.getElementById("trecho-"+id);
-  var q = parseFloat(qEl && qEl.value);
-  var trecho = ((tEl && tEl.value)||"").trim();
-  var saldo = f.qtd - somaLib(f);
-  if(!q || q<=0) return alert("Informa a quantidade");
-  if(!trecho) return alert("Identifica o trecho. Ex: Trecho B");
-  if(q>saldo) return alert("Estoura o saldo");
-  f.liberacoes.push({
-    id: Date.now(),
-    qtd: q,
-    trecho: trecho,
-    periodo: store.periodo,
-    periodoLabel: labelFolha(store.periodo)
-  });
-  if(qEl) qEl.value = "";
-  if(tEl) tEl.value = "";
-  save(); render();
+  try{
+    var f = db.filhos.find(function(x){ return String(x.id)===String(id); });
+    if(!f) return alert("Item não encontrado. Abre a obra de novo.");
+    if(!f.liberacoes) f.liberacoes = [];
+    var qEl = document.getElementById("lib-"+id);
+    var tEl = document.getElementById("trecho-"+id);
+    var q = parseFloat(qEl && qEl.value);
+    var trecho = ((tEl && tEl.value)||"").trim();
+    if(!trecho){
+      trecho = (prompt("Identificação do trecho (ex: Trecho 1):")||"").trim();
+    }
+    if(!q || q<=0){
+      q = parseFloat(prompt("Quantidade a liberar:"));
+    }
+    var saldo = Number(f.qtd||0) - somaLib(f);
+    if(!q || q<=0) return alert("Informa a quantidade");
+    if(!trecho) return alert("Identifica o trecho. Ex: Trecho B");
+    if(q>saldo+0.0001) return alert("Estoura o saldo ("+saldo+" "+(f.un||"")+")");
+    f.liberacoes.push({
+      id: Date.now(),
+      qtd: q,
+      trecho: trecho,
+      periodo: store.periodo,
+      periodoLabel: (typeof labelFolha==="function"?labelFolha(store.periodo):store.periodo)
+    });
+    var pai = db.pais.find(function(p){ return p.id===f.paiId; });
+    window._formExp = window._formExp || {};
+    if(pai) window._formExp[pai.id] = true;
+    save();
+    render();
+    alert("Trecho liberado: "+trecho+" · "+q+" "+(f.un||""));
+  }catch(e){
+    alert("Erro ao liberar: "+e.message);
+  }
 }
 function editarLib(filhoId, libId){
   var f = db.filhos.find(function(x){ return x.id===filhoId; });
@@ -1087,7 +1100,7 @@ function renderLiberacao(){
 var form = aberto ? (
             '<div class="mt-3">'+
               '<div class="grid md:grid-cols-3 gap-2 mb-2"><input id="trecho-'+f.id+'" placeholder="Ex: Trecho B" class="border rounded-lg px-3 py-2 text-sm md:col-span-2" /><input id="lib-'+f.id+'" type="number" placeholder="Qtde" class="border rounded-lg px-3 py-2 text-sm" /></div>'+
-              '<button onclick="liberar('+f.id+')" class="bg-blue-600 text-white text-sm px-3 py-2 rounded-lg mb-2">Liberar trecho</button>'+
+              '<button type="button" onclick="liberar('+f.id+');return false" class="bg-blue-600 text-white text-sm px-3 py-2 rounded-lg mb-2">Liberar trecho</button>'+
               (linhas || '<p class="text-[11px] text-slate-400">Nenhum trecho liberado.</p>')+
             '</div>'
           ) : (linhas ? '<div class="mt-2 space-y-1">'+linhas+'</div>' : '');
@@ -1486,11 +1499,12 @@ function renderHeader(){
     sel.classList.toggle("hidden", view==="home" || !o);
     var lb = document.getElementById("lblPeriodo");
     if(lb) lb.classList.toggle("hidden", view==="home" || !o);
-    if(o) preencherSelectPeriodo(sel);
+    if(o && sel.value!==store.periodo) preencherSelectPeriodo(sel);
+    else if(o && !sel.options.length) preencherSelectPeriodo(sel);
   }
   var sel2 = document.getElementById("periodoSel");
   var folha = document.getElementById("periodoFolha");
-  if(sel2) preencherSelectPeriodo(sel2);
+  if(sel2 && (sel2.value!==store.periodo || !sel2.options.length)) preencherSelectPeriodo(sel2);
   if(folha) folha.textContent = labelFolha(store.periodo);
 }
 
@@ -1821,7 +1835,7 @@ function carregarDbDaObra(){
     pais: cad.pais,
     filhos: (cad.filhos||[]).map(function(f){
       var copy = JSON.parse(JSON.stringify(f));
-      copy.liberacoes = (per.libs && per.libs[f.id]) ? JSON.parse(JSON.stringify(per.libs[f.id])) : [];
+      copy.liberacoes = (per.libs && (per.libs[f.id]||per.libs[String(f.id)])) ? JSON.parse(JSON.stringify(per.libs[f.id]||per.libs[String(f.id)])) : [];
       return copy;
     }),
     medicoes: per.medicoes || []
@@ -1840,7 +1854,7 @@ function salvarDbNaObra(){
   };
   store.dados = store.dados || {};
   var libs = {};
-  (db.filhos||[]).forEach(function(f){ libs[f.id] = f.liberacoes||[]; });
+  (db.filhos||[]).forEach(function(f){ libs[String(f.id)] = f.liberacoes||[]; });
   store.dados[chaveDados()] = { medicoes: db.medicoes||[], libs: libs };
   saveStore();
 }
