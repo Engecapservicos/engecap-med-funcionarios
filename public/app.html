@@ -233,6 +233,18 @@
             <p class="text-[11px] text-slate-400 mt-1">R$ 18,90</p>
           </div>
         </div>
+        <div id="boxPeriodoServ" class="hidden grid md:grid-cols-2 gap-3 mt-4 pt-3 border-t border-white/10">
+          <div>
+            <label class="text-xs text-slate-300">Servente — entrou em</label>
+            <input id="servDe" type="date" oninput="atualizarDiasServ()" class="w-full border-0 rounded-lg px-3 py-2 text-sm text-slate-800" />
+          </div>
+          <div>
+            <label class="text-xs text-slate-300">Servente — saiu em</label>
+            <input id="servAte" type="date" oninput="atualizarDiasServ()" class="w-full border-0 rounded-lg px-3 py-2 text-sm text-slate-800" />
+          </div>
+          <p id="servDias" class="md:col-span-2 text-sm font-semibold text-white">—</p>
+          <p class="md:col-span-2 text-[11px] text-slate-300">Padrão é 21 a 20. Se entrou no meio, muda a entrada. O sistema conta os dias sozinho.</p>
+        </div>
       </section>
       <div id="listaLan" class="space-y-4 mb-6"></div>
       <section class="bg-white rounded-2xl border-2 border-slate-300 p-5">
@@ -590,7 +602,15 @@ function sair(){
 
 
 
-function normFun(s){ return String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
+function normFun(s){ return String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,""); }
+function canonFuncao(s){
+  var n = normFun(s);
+  if(/carp|forma/.test(n)) return "Carpinteiro";
+  if(/armad|ferro|aco/.test(n)) return "Armador";
+  if(/pedr|alven|reboco/.test(n)) return "Pedreiro";
+  if(/serv|ajud|serven/.test(n)) return "Servente";
+  return s ? String(s).trim() : s;
+}
 function vuFuncao(funcoes, funcao){
   if(!funcoes || !funcao) return 0;
   if(Number(funcoes[funcao])>0) return Number(funcoes[funcao]);
@@ -806,19 +826,25 @@ function excluirLib(filhoId, libId){
 function buscarFuncionario(){
   var chapa = (document.getElementById("funcChapa").value||"").trim();
   var f = FUNCIONARIOS.find(function(x){ return String(x.chapa)===String(chapa); });
+  if(f) f.funcao = canonFuncao(f.funcao);
   funcionarioAtual = f || null;
   document.getElementById("funcNome").value = f ? f.nome : "";
   document.getElementById("funcFuncao").value = f ? f.funcao : "";
   document.getElementById("funcStatus").textContent = f ? (f.chapa + " · " + f.nome + " · " + f.funcao) : (chapa ? "Chapa não encontrada" : "Chapas: 18432-36 carp · 19201-05 arm · 20962-65 ped · 17554-58 serv");
   if(view==="lancamento") renderLancamento();
+  mostrarPeriodoServente();
 }
 
-function medidoNoTrecho(libId, funcao){
+function mesmaFuncao(a,b){
+  return normFun(a)===normFun(b);
+}
+function medidoNoTrecho(libId, funcao, filho){
   return (db.medicoes||[]).filter(function(m){
-    if(m.libId!==libId) return false;
     if(m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra") return false;
-    if(funcao && m.funcao!==funcao) return false;
-    return true;
+    if(funcao && !mesmaFuncao(m.funcao, funcao)) return false;
+    var porLib = String(m.libId)===String(libId);
+    var porTrecho = filho && m.trecho && (filho.liberacoes||[]).some(function(l){ return String(l.id)===String(libId) && String(m.trecho)===String(l.trecho); });
+    return porLib || porTrecho;
   }).reduce(function(a,m){ return a + Number(m.qtd||0); },0);
 }
 
@@ -827,7 +853,7 @@ function trechosLiberados(funcao){
   db.filhos.forEach(function(f){
     var pai = db.pais.find(function(p){ return p.id===f.paiId; });
     (f.liberacoes||[]).forEach(function(l){
-      var medido = medidoNoTrecho(l.id, funcao || null);
+      var medido = medidoNoTrecho(l.id, funcao || null, f);
       out.push({ filho:f, pai:pai, lib:l, teto:l.qtd, medido:medido, saldo:l.qtd-medido, funcaoFiltro: funcao||null });
     });
   });
@@ -837,7 +863,7 @@ function trechosLiberados(funcao){
 function saldosPorFuncao(f, lib){
   return ativas(f.funcoes).map(function(x){
     var nome = x[0];
-    var medido = medidoNoTrecho(lib.id, nome);
+    var medido = medidoNoTrecho(lib.id, nome, f);
     return { funcao:nome, teto:lib.qtd, medido:medido, saldo:lib.qtd-medido, vu:x[1] };
   });
 }
@@ -845,7 +871,7 @@ function saldosPorFuncao(f, lib){
 function lancar(libId){
   if(!funcionarioAtual) return alert("Puxa a chapa primeiro");
   var q = parseFloat(document.getElementById("med-"+libId).value);
-  var t = trechosLiberados(funcionarioAtual.funcao).find(function(x){ return x.lib.id===libId; });
+  var t = trechosLiberados(funcionarioAtual.funcao).find(function(x){ return String(x.lib.id)===String(libId); });
   if(!q || q<=0) return alert("Informa a quantidade");
   if(q>t.saldo) return alert("Estoura o teto desta função neste trecho. Saldo "+t.saldo+" "+t.filho.un);
   var vu = vuFuncao(t.filho.funcoes, funcionarioAtual.funcao);
@@ -862,7 +888,8 @@ function lancar(libId){
     valor: q*vu,
     trecho: t.lib.trecho,
     item: t.filho.nome,
-    pai: t.pai.nome
+    pai: t.pai.nome,
+    periodoTrabalho: (canonFuncao(funcionarioAtual.funcao)==="Servente" ? periodoServenteAtual() : null)
   });
   var qi = parseFloat(document.getElementById("qtdInt").value)||0;
   var qv = parseFloat(document.getElementById("qtdVt").value)||0;
@@ -1124,6 +1151,8 @@ var form = aberto ? (
 }
 
 function renderLancamento(){
+  mostrarPeriodoServente();
+
   var box = document.getElementById("listaLan");
   var funcaoAtual = funcionarioAtual ? funcionarioAtual.funcao : null;
   var todos = trechosLiberados(funcaoAtual);
@@ -1188,12 +1217,13 @@ function renderLancamento(){
         else if(m.tipo==="vtSabado") det = "VT de sábado · "+m.qtd;
         else if(m.tipo==="extra") det = "Integração "+(m.integracao||0)+" · VT sábado "+(m.vtSabado||0);
         else det = m.pai+" · "+m.item+" · "+m.trecho+" · "+m.qtd;
+        if(m.periodoTrabalho) det += " · trabalho "+labelPeriodoTrabalho(m.periodoTrabalho);
         return '<div class="flex justify-between gap-3 py-2 border-t text-sm"><div><p>'+det+'</p></div><div class="text-right"><p>'+money(m.valor)+'</p><button onclick="editarMed('+m.id+')" class="text-[11px] text-blue-600 mr-2">✎ editar</button><button onclick="excluirMed('+m.id+')" class="text-[11px] text-slate-400">excluir</button></div></div>';
       }).join("");
       return '<div class="border-t first:border-0">'+
         '<button onclick="toggleFunc(\''+sid+'\')" class="w-full flex justify-between items-center px-3 py-3 text-left hover:bg-slate-50">'+
           '<div><p class="font-medium">'+g.chapa+' · '+g.nome+'</p><p class="text-xs text-slate-500">'+g.itens.length+' lançamento(s)</p></div>'+
-          '<div class="flex items-center gap-2"><button onclick="event.stopPropagation();imprimirFolha(\''+String(g.chapa).replace(/'/g,"")+'\')" class="text-xs border px-2 py-1 rounded">🖨️ folha</button><p class="font-semibold">'+money(g.total)+'</p></div></button>'+
+          '<div class="flex items-center gap-2"><button onclick="event.stopPropagation();imprimirFolha(\''+String(g.chapa).replace(/'/g,"")+'\')" class="text-xs border px-2 py-1 rounded">'+(aprovacaoChapa(g.chapa)?"🖨️ folha":"🔒 aguarda aprovação")+'</button><p class="font-semibold">'+money(g.total)+'</p></div></button>'+
         '<div id="'+sid+'" class="hidden px-3 pb-2 bg-slate-50">'+itens+'</div></div>';
     }).join("");
     return '<div class="border-2 border-slate-300 rounded-xl mb-4 overflow-hidden">'+
@@ -1208,7 +1238,24 @@ function renderLancamento(){
 function dadosObraAtual(){
   return (store.obras||[]).find(function(x){ return x.id===store.obraId; }) || {codigo:"", nome:"", cliente:""};
 }
-function htmlFolha(chapa, meds){
+
+function codigoFolha(chapa, tot, ap){
+  var s = [chapa, store.obraId, store.periodo, String(Math.round(Number(tot||0)*100)), ap&&ap.por, ap&&ap.em].join("|");
+  var h = 2166136261;
+  for(var i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  var hex = (h>>>0).toString(16).toUpperCase();
+  return "ENG-"+String(hex).padStart(8,"0");
+}
+function seloEng(ap, chapa, tot){
+  var cod = codigoFolha(chapa, tot, ap);
+  return '<div class="selo">'+
+    '<div class="ok">APROVADO</div>'+
+    '<div class="nm">'+(ap.nome||ap.por)+'</div>'+
+    '<div class="dt">'+ap.em+'</div>'+
+    '<div class="cd">'+cod+'</div>'+
+    '</div>';
+}
+function htmlFolha(chapa, meds, ap){
   var o = dadosObraAtual();
   var nome = (meds[0]&&meds[0].funcionario)||"";
   var funcao = (meds[0]&&meds[0].funcao)||"";
@@ -1222,43 +1269,85 @@ function htmlFolha(chapa, meds){
     var lab = m.tipo==="integracao"?"Integração":(m.tipo==="vtSabado"?"VT sábado":m.item);
     return lab+" · "+m.qtd+" · "+money(m.valor);
   }).join("<br>") || "—";
+  var logo = "logo-engecap.jpg";
+  try { if(location.origin && location.origin!=="null") logo = location.origin.replace(/\/$/,"") + "/logo-engecap.jpg"; } catch(e){}
   return '<div class="folha">'+
-    '<div class="topo"><div><strong>ENGECAP</strong><div class="m">Folha de medição de M.O.</div></div>'+
+    '<div class="topo"><div><img src="'+logo+'" alt="Engecap" class="logo" /><div class="m">Folha de medição de M.O.</div></div>'+
     '<div class="m">'+o.codigo+' · '+o.nome+'<br>'+(o.cliente||"")+'<br>Competência '+(store.periodo||"")+' · '+labelFolha(store.periodo)+'</div></div>'+
     '<p><strong>Chapa:</strong> '+chapa+' &nbsp; <strong>Nome:</strong> '+nome+' &nbsp; <strong>Função:</strong> '+funcao+'</p>'+
+    (meds.some(function(m){ return m.periodoTrabalho; }) ? '<p><strong>Período trabalhado:</strong> '+labelPeriodoTrabalho((meds.find(function(m){ return m.periodoTrabalho; })||{}).periodoTrabalho)+'</p>' : '')+
+    (ap ? '<p><strong>Situação:</strong> APROVADA pela engenharia · '+ap.nome+' em '+ap.em+'</p>' : '')+
+
     '<table><thead><tr><th>#</th><th>Grupo</th><th>Serviço</th><th>Trecho</th><th>Qtde</th><th>Unit.</th><th>Total</th></tr></thead><tbody>'+
     (linhas||'<tr><td colspan="7">Sem serviço produtivo</td></tr>')+
     '</tbody></table>'+
     '<p class="m"><strong>Vales:</strong> '+extraTxt+'</p>'+
     '<p><strong>Total da folha: '+money(tot)+'</strong></p>'+
+    '<div class="espaco"></div>'+
     '<div class="ass">'+
-      '<div>Apontador<br><span></span></div>'+
-      '<div>Funcionário<br><span></span></div>'+
-      '<div>Engenharia<br><span></span></div>'+
+      '<div>Encarregado da obra<br><span>Nome / assinatura</span></div>'+
+      '<div>Funcionário<br><span>Nome / assinatura</span></div>'+
+      '<div>Engenharia'+(ap ? seloEng(ap, chapa, tot) : '<span>Pendente</span>')+'</div>'+
     '</div></div>';
 }
 function abrirImpressao(html){
   var w = window.open("", "_blank");
   if(!w) return alert("Libera pop-up para imprimir");
   w.document.write('<html><head><title>Folha de medição</title><style>'+
-    'body{font-family:Arial,sans-serif;padding:18px;color:#111}'+
+    'body{font-family:Arial,sans-serif;padding:16px;color:#111}'+
     '.folha{page-break-after:always;margin-bottom:28px}'+
-    '.topo{display:flex;justify-content:space-between;border-bottom:2px solid #102a43;padding-bottom:8px;margin-bottom:12px}'+
-    'table{width:100%;border-collapse:collapse;margin:10px 0;font-size:13px}'+
+    '.topo{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #102a43;padding-bottom:8px;margin-bottom:12px}'+
+    '.logo{height:52px;object-fit:contain;display:block;margin-bottom:4px}'+
+    'table{width:100%;border-collapse:collapse;margin:10px 0 8px;font-size:12px}'+
     'th,td{border:1px solid #ccc;padding:6px;text-align:left}'+
     'th{background:#102a43;color:#fff}'+
     '.m{font-size:12px;color:#333}'+
-    '.ass{display:flex;gap:24px;margin-top:36px}'+
-    '.ass div{flex:1;text-align:center;font-size:12px}'+
-    '.ass span{display:block;border-top:1px solid #111;margin-top:40px;padding-top:6px}'+
-    '@media print{.folha{page-break-after:always}}'+
+    '.espaco{height:36px}'+
+    '.ass{display:flex;gap:28px;margin-top:48px;align-items:flex-end}'+
+    '.ass > div{flex:1;text-align:center;font-size:11px}'+
+    '.ass span{display:block;border-top:1px solid #111;margin-top:52px;padding-top:5px}'+
+    '.selo{border:1px solid #0f766e;border-radius:6px;padding:6px 8px;margin-top:8px;text-align:center;min-height:52px}'+
+    '.selo .ok{color:#0f766e;font-weight:700;font-size:10px;letter-spacing:.08em}'+
+    '.selo .nm{font-size:11px;font-weight:600;margin-top:2px}'+
+    '.selo .dt{font-size:9px;color:#444}'+
+    '.selo .cd{font-size:9px;letter-spacing:.04em;margin-top:2px}'+
+    '@page{size:A4 landscape;margin:12mm}'+
+    '@media print{body{padding:0}.folha{page-break-after:always}}'+
     '</style></head><body>'+html+'<script>window.onload=function(){window.print()}<\/script></body></html>');
   w.document.close();
+}
+function aprovacaoChapa(chapa){
+  db.aprovacoes = db.aprovacoes || {};
+  return db.aprovacoes[String(chapa)] || null;
+}
+function podeAprovar(){
+  return sessao && (sessao.role==="engenheiro" || sessao.role==="admin");
+}
+function aprovarMedicao(chapa){
+  if(!podeAprovar()) return alert("Só engenheiro/admin aprova");
+  db.aprovacoes = db.aprovacoes || {};
+  db.aprovacoes[String(chapa)] = {
+    por: sessao.user || sessao.email,
+    nome: sessao.user || "Engenharia",
+    em: new Date().toLocaleString("pt-BR"),
+    status: "aprovado"
+  };
+  save();
+  render();
+  alert("Medição da chapa "+chapa+" aprovada.");
+}
+function reprovarMedicao(chapa){
+  if(!podeAprovar()) return alert("Só engenheiro/admin");
+  db.aprovacoes = db.aprovacoes || {};
+  delete db.aprovacoes[String(chapa)];
+  save(); render();
 }
 function imprimirFolha(chapa){
   var meds = (db.medicoes||[]).filter(function(m){ return String(m.chapa)===String(chapa); });
   if(!meds.length) return alert("Sem lançamento nessa chapa");
-  abrirImpressao(htmlFolha(chapa, meds));
+  var ap = aprovacaoChapa(chapa);
+  if(!ap) return alert("Engenharia ainda não aprovou esta medição. Não imprime.");
+  abrirImpressao(htmlFolha(chapa, meds, ap));
 }
 function imprimirTodasFolhas(){
   var meds = db.medicoes||[];
@@ -1267,9 +1356,10 @@ function imprimirTodasFolhas(){
     var c = String(m.chapa||"");
     if(c && chapas.indexOf(c)<0) chapas.push(c);
   });
-  if(!chapas.length) return alert("Nenhuma medição no período");
+  chapas = chapas.filter(function(c){ return !!aprovacaoChapa(c); });
+  if(!chapas.length) return alert("Nenhuma folha aprovada pela engenharia neste período");
   var html = chapas.map(function(c){
-    return htmlFolha(c, meds.filter(function(m){ return String(m.chapa)===c; }));
+    return htmlFolha(c, meds.filter(function(m){ return String(m.chapa)===c; }), aprovacaoChapa(c));
   }).join("");
   abrirImpressao(html);
 }
@@ -1412,6 +1502,12 @@ function renderFechar(){
       var g = grupos[k];
       var c = calcFolha(g.tarefa);
       var sid = "fec-"+fn.replace(/[^a-zA-Z0-9]/g,"")+"-"+String(k).replace(/[^a-zA-Z0-9]/g,"");
+      var ap = aprovacaoChapa(g.chapa);
+      var btAprov = podeAprovar()
+        ? (ap
+            ? '<button onclick="event.stopPropagation();reprovarMedicao(\''+g.chapa+'\')" class="text-xs px-2 py-1 rounded bg-emerald-600 text-white">Aprovada · desfazer</button>'
+            : '<button onclick="event.stopPropagation();aprovarMedicao(\''+g.chapa+'\')" class="text-xs px-2 py-1 rounded bg-blue-600 text-white">Aprovar medição</button>')
+        : (ap ? '<span class="text-xs text-emerald-700 font-medium">Aprovada</span>' : '<span class="text-xs text-amber-600">Aguardando engenharia</span>');
       var itens = g.itens.map(function(m){
         var det = (m.obraNome ? ("["+m.obraNome+"] ") : "") + (
           m.tipo==="integracao" ? ("Integração · "+m.qtd+" dia(s)")
@@ -1423,10 +1519,11 @@ function renderFechar(){
       return '<div class="border-t border-slate-100">'+
         '<button onclick="toggleFunc(\''+sid+'\')" class="w-full text-left px-4 py-3 hover:bg-slate-50">'+
           '<div class="grid grid-cols-12 gap-2 items-center">'+
-            '<div class="col-span-12 md:col-span-5"><p class="font-medium text-slate-800">'+g.chapa+' · '+g.nome+'</p><p class="text-[11px] text-slate-400">'+g.itens.length+' item(ns)</p></div>'+
+            '<div class="col-span-12 md:col-span-5"><p class="font-medium text-slate-800">'+g.chapa+' · '+g.nome+'</p><p class="text-[11px] text-slate-400">'+g.itens.length+' item(ns) · '+(ap?("aprovada por "+ap.nome):"pendente")+'</p></div>'+
             '<div class="col-span-4 md:col-span-2 text-sm"><p class="text-[10px] text-slate-400">Tarefa</p><p class="font-semibold">'+money(c.tarefa)+'</p></div>'+
             '<div class="col-span-4 md:col-span-2 text-sm"><p class="text-[10px] text-emerald-600">Prêmio</p><p class="font-semibold text-emerald-700">'+money(c.premio)+'</p></div>'+
-            '<div class="col-span-4 md:col-span-3 text-sm md:text-right"><p class="text-[10px] text-slate-400">Custo M.O.</p><p class="font-semibold text-blue-700">'+money(c.custo)+'</p></div>'+
+            '<div class="col-span-4 md:col-span-2 text-sm md:text-right"><p class="text-[10px] text-slate-400">Custo M.O.</p><p class="font-semibold text-blue-700">'+money(c.custo)+'</p></div>'+
+            '<div class="col-span-12 md:col-span-1 text-right">'+btAprov+'</div>'+
           '</div></button>'+
         '<div id="'+sid+'" class="hidden px-4 pb-4 bg-slate-50 border-t">'+
           '<p class="text-[11px] uppercase text-slate-400 pt-3 mb-1">Itens lançados</p>'+itens+
@@ -1473,6 +1570,65 @@ function labelFolha(k){
   function di(mm,yy){ return "21/"+(mm<10?"0"+mm:mm)+"/"+yy; }
   return di(prev,yPrev)+" a "+dd(m,y);
 }
+
+function datasCompetencia(k){
+  var p = String(k||store.periodo||"").split("-");
+  var y = Number(p[0]), m = Number(p[1]);
+  if(!y||!m) return {de:"", ate:""};
+  var prev = m===1?12:m-1, yPrev = m===1?y-1:y;
+  function iso(yy,mm,dd){ return yy+"-"+(mm<10?"0"+mm:mm)+"-"+(dd<10?"0"+dd:dd); }
+  return { de: iso(yPrev,prev,21), ate: iso(y,m,20) };
+}
+function fmtBR(iso){
+  if(!iso) return "";
+  var a = String(iso).split("-");
+  if(a.length<3) return iso;
+  return a[2]+"/"+a[1]+"/"+a[0];
+}
+function mostrarPeriodoServente(){
+  var box = document.getElementById("boxPeriodoServ");
+  if(!box) return;
+  var eh = funcionarioAtual && canonFuncao(funcionarioAtual.funcao)==="Servente";
+  box.classList.toggle("hidden", !eh);
+  if(!eh) return;
+  var d = datasCompetencia(store.periodo);
+  var de = document.getElementById("servDe");
+  var ate = document.getElementById("servAte");
+  if(de && !de.value) de.value = d.de;
+  if(ate && !ate.value) ate.value = d.ate;
+  atualizarDiasServ();
+}
+function diasEntre(de, ate){
+  if(!de || !ate) return 0;
+  var a = new Date(de+"T00:00:00"), b = new Date(ate+"T00:00:00");
+  if(isNaN(a) || isNaN(b) || b<a) return 0;
+  return Math.round((b-a)/86400000)+1;
+}
+function atualizarDiasServ(){
+  var de = (document.getElementById("servDe")||{}).value || "";
+  var ate = (document.getElementById("servAte")||{}).value || "";
+  var n = diasEntre(de, ate);
+  var el = document.getElementById("servDias");
+  if(el) el.textContent = n ? (n+" dia(s) trabalhados ("+fmtBR(de)+" a "+fmtBR(ate)+")") : "Confere as datas";
+}
+
+function labelPeriodoTrabalho(pt){
+  if(!pt) return "";
+  var n = Number(pt.dias);
+  if(!n) n = diasEntre(pt.de, pt.ate);
+  var base = pt.label && /dia/.test(pt.label) ? pt.label : ((pt.de||pt.ate) ? (fmtBR(pt.de)+" a "+fmtBR(pt.ate)) : (pt.label||""));
+  if(n && !/dia/.test(base)) base += " · "+n+" dia(s)";
+  if(n && /dia/.test(base) && !String(n).length) {}
+  return base;
+}
+function periodoServenteAtual(){
+  var de = (document.getElementById("servDe")||{}).value || "";
+  var ate = (document.getElementById("servAte")||{}).value || "";
+  if(!de && !ate) return null;
+  var n = diasEntre(de, ate);
+  return { de:de, ate:ate, dias:n, label: fmtBR(de)+" a "+fmtBR(ate)+" · "+n+" dia(s)" };
+}
+
 function meses(){
   var out=[];
   var d=new Date(2026,0,1);
@@ -1696,7 +1852,7 @@ function parseCsvText(text){
     var funcao = hasHead && iFu>=0 ? parts[iFu] : (parts[2]||"Servente");
     chapa = String(chapa||"").replace(/\D/g,"") || String(chapa||"").trim();
     if(!chapa || !nome) return;
-    extra.push({chapa:chapa, nome:nome, funcao:funcao||"Servente"});
+    extra.push({chapa:chapa, nome:nome, funcao:canonFuncao(funcao||"Servente")});
   });
   return { extra:extra, preview:linhas.slice(0,3).join(" | ") };
 }
@@ -1713,7 +1869,7 @@ function subirCsv(ev){
       if(i===0 && /chapa/i.test(ln)) return;
       var parts = ln.split(/[;,]/).map(function(s){ return s.trim(); });
       if(parts.length<3) return;
-      extra.push({chapa:parts[0], nome:parts[1], funcao:parts[2]});
+      extra.push({chapa:parts[0], nome:parts[1], funcao:canonFuncao(parts[2])});
       n++;
     });
     extra.forEach(function(f){
@@ -1782,7 +1938,7 @@ function trocarPeriodo(k){
 }
 
 function vazioDb(){
-  return { pais:[], filhos:[], medicoes:[] };
+  return { pais:[], filhos:[], medicoes:[], aprovacoes:{} };
 }
 
 function chaveDados(){
@@ -1838,8 +1994,10 @@ function carregarDbDaObra(){
       copy.liberacoes = (per.libs && (per.libs[f.id]||per.libs[String(f.id)])) ? JSON.parse(JSON.stringify(per.libs[f.id]||per.libs[String(f.id)])) : [];
       return copy;
     }),
-    medicoes: per.medicoes || []
+    medicoes: per.medicoes || [],
+    aprovacoes: per.aprovacoes || {}
   };
+  if(!db.aprovacoes) db.aprovacoes = {};
   paiSel = db.pais[0] ? db.pais[0].id : null;
 }
 
@@ -1855,7 +2013,7 @@ function salvarDbNaObra(){
   store.dados = store.dados || {};
   var libs = {};
   (db.filhos||[]).forEach(function(f){ libs[String(f.id)] = f.liberacoes||[]; });
-  store.dados[chaveDados()] = { medicoes: db.medicoes||[], libs: libs };
+  store.dados[chaveDados()] = { medicoes: db.medicoes||[], libs: libs, aprovacoes: db.aprovacoes||{} };
   saveStore();
 }
 
@@ -1880,9 +2038,10 @@ function renderSaldo(){
       }
       return libs.map(function(l){
         var rows = saldosPorFuncao(f,l).map(function(s){
-          var pct = s.teto ? Math.round(s.medido/s.teto*100) : 0;
-          return '<div class="mt-2"><div class="flex justify-between text-xs mb-1"><span class="font-medium">'+s.funcao+'</span><span>medido '+s.medido+' · saldo '+s.saldo+' / '+s.teto+' '+f.un+'</span></div>'+
-            '<div class="h-2 bg-slate-100 rounded-full"><div class="h-full bg-blue-600 rounded-full" style="width:'+pct+'%"></div></div></div>';
+          var pct = s.teto ? Math.max(0, Math.min(100, Math.round(s.medido/s.teto*100))) : 0;
+          var cor = pct>=100 ? "bg-emerald-600" : pct>0 ? "bg-blue-600" : "bg-slate-300";
+          return '<div class="mt-2"><div class="flex justify-between text-xs mb-1"><span class="font-medium">'+s.funcao+'</span><span>medido '+Number(s.medido).toLocaleString("pt-BR")+' · saldo '+Number(s.saldo).toLocaleString("pt-BR")+' / '+Number(s.teto).toLocaleString("pt-BR")+' '+f.un+'</span></div>'+
+            '<div class="h-2.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full '+cor+' rounded-full" style="width:'+(pct||1)+'%"></div></div></div>';
         }).join("");
         return '<div class="border-2 border-slate-200 rounded-xl p-4 mb-3"><p class="font-semibold">'+f.nome+' · '+l.trecho+'</p><p class="text-[11px] text-slate-500 mb-1">Teto '+l.qtd+' '+f.un+' por função</p>'+rows+'</div>';
       }).join("");
