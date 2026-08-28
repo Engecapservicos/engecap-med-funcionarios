@@ -97,7 +97,9 @@
           <div class="p-4 border-b">
             <p class="text-xs text-slate-500 mb-2">CSV funcionários (chapa;nome;funcao)</p>
             <input type="file" accept=".csv,text/csv" onchange="subirCsv(event)" class="text-sm" />
+            <button type="button" onclick="enviarFuncionariosNuvem()" class="mt-2 bg-blue-600 text-white text-sm px-3 py-2 rounded-lg">Enviar lista para a nuvem</button>
             <p id="csvMsg" class="text-xs text-slate-500 mt-2"></p>
+            <p id="nuvemStatus" class="text-xs text-slate-400 mt-1"></p>
           </div>
           <div id="listaLogs" class="max-h-[420px] overflow-y-auto text-sm"></div>
         </section>
@@ -414,13 +416,23 @@ async function cloudLogin(user, senha){
   if(r.error) throw new Error(r.error.message);
   var uid = r.data.user.id;
   var pr = await sb.from("profiles").select("role,email").eq("id", uid).single();
-  return { email: r.data.user.email, role: (pr.data && pr.data.role) || "apontador", user: mail.split("@")[0] };
+  var role = pr.data && pr.data.role;
+  var u = mail.split("@")[0];
+  if(!role){
+    if(u==="admin") role = "admin";
+    else if(u==="engenheiro") role = "engenheiro";
+    else role = "apontador";
+  }
+  return { email: r.data.user.email, role: role, user: u };
 }
 async function cloudLoadFuncionarios(){
   if(!sbOn()) return;
-  var r = await sb.from("funcionarios").select("chapa,nome,funcao").eq("active", true);
-  if(r.error) { console.warn(r.error); return; }
-  if(r.data && r.data.length) FUNCIONARIOS = r.data;
+  var r = await sb.from("funcionarios").select("chapa,nome,funcao,active");
+  if(r.error) { console.warn(r.error); throw new Error(r.error.message); }
+  var arr = (r.data||[]).filter(function(x){ return x.active!==false; });
+  if(arr.length) FUNCIONARIOS = arr;
+  var st = document.getElementById("nuvemStatus");
+  if(st) st.textContent = "Nuvem: "+arr.length+" funcionário(s).";
 }
 async function cloudSaveFuncionarios(rows){
   if(!sbOn() || !rows.length) return;
@@ -1486,6 +1498,51 @@ function renderAdmin(){
     }).join("") : '<p class="p-4 text-slate-400 text-sm">Nenhum log ainda.</p>';
   }
 }
+
+async function enviarFuncionariosNuvem(){
+  var msg = document.getElementById("csvMsg");
+  if(!sbOn()){
+    if(msg) msg.textContent = "Nuvem desligada. Falta sb-config.js neste computador.";
+    return alert("Este computador está em modo local. Sobe o sb-config.js junto do HTML.");
+  }
+  try{
+    await cloudSaveFuncionarios(FUNCIONARIOS);
+    if(msg) msg.textContent = FUNCIONARIOS.length+" funcionários enviados para a nuvem.";
+    addLog("Push nuvem funcionários "+FUNCIONARIOS.length);
+    alert("Nuvem ok: "+FUNCIONARIOS.length+" funcionários.");
+  }catch(e){
+    alert("Falhou na nuvem: "+e.message);
+  }
+}
+
+function parseCsvText(text){
+  text = String(text||"").replace(/^\ufeff/, "");
+  var linhas = text.split(/\r?\n/).map(function(l){ return l.trim(); }).filter(Boolean);
+  if(!linhas.length) return {extra:[], preview:""};
+  function splitLine(ln){
+    var d = (ln.split(";").length >= ln.split(",").length) ? ";" : ",";
+    if(ln.indexOf("\t")>=0 && ln.split("\t").length > ln.split(d).length) d = "\t";
+    return ln.split(d).map(function(s){ return s.replace(/^["']|["']$/g,"").trim(); });
+  }
+  var head = splitLine(linhas[0]).map(function(s){ return s.toLowerCase(); });
+  var iCh = head.findIndex(function(h){ return /chapa|matric|cracha|crachá|id/.test(h); });
+  var iNo = head.findIndex(function(h){ return /nome|funcionario|funcionário|colabor/.test(h); });
+  var iFu = head.findIndex(function(h){ return /func|cargo|categ|profiss/.test(h); });
+  var hasHead = iCh>=0 || iNo>=0;
+  var extra = [];
+  linhas.forEach(function(ln, i){
+    if(i===0 && hasHead) return;
+    var parts = splitLine(ln);
+    if(parts.length<2) return;
+    var chapa = hasHead && iCh>=0 ? parts[iCh] : parts[0];
+    var nome = hasHead && iNo>=0 ? parts[iNo] : parts[1];
+    var funcao = hasHead && iFu>=0 ? parts[iFu] : (parts[2]||"Servente");
+    chapa = String(chapa||"").replace(/\D/g,"") || String(chapa||"").trim();
+    if(!chapa || !nome) return;
+    extra.push({chapa:chapa, nome:nome, funcao:funcao||"Servente"});
+  });
+  return { extra:extra, preview:linhas.slice(0,3).join(" | ") };
+}
 function subirCsv(ev){
   var file = ev.target.files && ev.target.files[0];
   if(!file) return;
@@ -1508,7 +1565,13 @@ function subirCsv(ev){
       if(i>=0) FUNCIONARIOS[i] = f; else FUNCIONARIOS.push(f);
     });
     saveFuncionarios();
-    if(sbOn()) cloudSaveFuncionarios(extra).catch(function(e){ alert("Nuvem: "+e.message); });
+    if(sbOn()) {
+      cloudSaveFuncionarios(FUNCIONARIOS).then(function(){
+        document.getElementById("csvMsg").textContent += " · enviado à nuvem.";
+      }).catch(function(e){ alert("Nuvem: "+e.message); });
+    } else {
+      document.getElementById("csvMsg").textContent += " · só neste computador (sem nuvem).";
+    }
     addLog("CSV "+file.name+" · "+n+" linha(s) · total "+FUNCIONARIOS.length);
     document.getElementById("csvMsg").textContent = n+" linhas no arquivo · "+FUNCIONARIOS.length+" funcionários gravados. Vale para todos os usuários neste navegador.";
     renderAdmin();
