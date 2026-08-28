@@ -1747,8 +1747,8 @@ function criarUser(ev){
   return false;
 }
 function salvarUser(id){
-  var u = USERS_DB.find(function(x){ return x.id===id; });
-  if(!u) return;
+  var u = USERS_DB.find(function(x){ return String(x.id)===String(id); });
+  if(!u) return alert("Usuário não encontrado");
   u.role = document.getElementById("role-"+id).value;
   u.active = document.getElementById("atv-"+id).checked;
   var ns = document.getElementById("sen-"+id).value;
@@ -1767,8 +1767,8 @@ function salvarUser(id){
   renderAdmin();
 }
 function excluirUser(id){
-  var u = USERS_DB.find(function(x){ return x.id===id; });
-  if(!u) return;
+  var u = USERS_DB.find(function(x){ return String(x.id)===String(id); });
+  if(!u) return alert("Usuário não encontrado");
   if(u.user==="admin") return alert("Não exclui o admin principal");
   if(!confirm("Excluir "+u.user+"?")) return;
   if(sbOn()){
@@ -1800,8 +1800,8 @@ function renderAdmin(){
         '<option '+(u.role==="apontador"?"selected":"")+' value="apontador">apontador</option></select>'+
       '<label class="text-xs"><input id="atv-'+u.id+'" type="checkbox" '+(u.active?"checked":"")+' /> ativo</label>'+
       '<input id="sen-'+u.id+'" placeholder="nova senha" class="border rounded-lg px-2 py-1 text-sm w-28" />'+
-      '<button onclick="salvarUser('+u.id+')" class="text-xs bg-slate-800 text-white px-2 py-1 rounded">Salvar</button>'+
-      '<button onclick="excluirUser('+u.id+')" class="text-xs text-red-600">Excluir</button></div>';
+      '<button type="button" onclick="salvarUser(\''+String(u.id)+'\')" class="text-xs bg-slate-800 text-white px-2 py-1 rounded">Salvar</button>'+
+      '<button type="button" onclick="excluirUser(\''+String(u.id)+'\')" class="text-xs text-red-600">Excluir</button></div>';
   }).join("");
   var lg = document.getElementById("listaLogs");
   if(lg){
