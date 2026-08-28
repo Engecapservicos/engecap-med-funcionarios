@@ -475,6 +475,16 @@ async function cloudPullStore(){
     store.dados[c.obra_id+"|"+c.periodo] = { medicoes:c.medicoes||[], libs:c.libs||{} };
   });
 }
+async function cloudDeleteObra(id){
+  if(!sbOn() || !id) return;
+  await sb.from("mo_periodo").delete().eq("obra_id", id);
+  await sb.from("mo_cadastro").delete().eq("obra_id", id);
+  var r = await sb.from("mo_obras").delete().eq("id", id);
+  if(r.error){
+    r = await sb.from("mo_obras").update({active:false}).eq("id", id);
+    if(r.error) throw new Error(r.error.message);
+  }
+}
 async function cloudPushStore(){
   if(!sbOn()) return;
   var obras = store.obras||[];
@@ -1003,6 +1013,11 @@ function excluirObra(id, ev){
   if(store.cadastro) delete store.cadastro[id];
   if(store.obraId===id) store.obraId = null;
   saveStore();
+  if(sbOn()){
+    cloudDeleteObra(id).then(function(){
+      if(typeof addLog==="function") addLog("Excluiu obra na nuvem "+o.nome);
+    }).catch(function(e){ alert("Apagou aqui, mas a nuvem recusou: "+e.message); });
+  }
   if(typeof addLog==="function") addLog("Excluiu obra "+o.nome);
   ir("home");
 }
