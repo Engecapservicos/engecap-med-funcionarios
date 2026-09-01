@@ -225,12 +225,12 @@
           <div>
             <label class="text-xs text-slate-300">Integração / VT (dias)</label>
             <input id="qtdInt" type="number" min="0" value="0" class="w-full border-0 rounded-lg px-3 py-2 text-sm text-slate-800" />
-            <p class="text-[11px] text-slate-400 mt-1">R$ 8,90 / dia</p>
+            <p class="text-[11px] text-slate-400 mt-1">R$ 9,38 / dia</p>
           </div>
           <div>
             <label class="text-xs text-slate-300">VT de sábado (qtde)</label>
             <input id="qtdVt" type="number" min="0" value="0" class="w-full border-0 rounded-lg px-3 py-2 text-sm text-slate-800" />
-            <p class="text-[11px] text-slate-400 mt-1">R$ 18,90</p>
+            <p class="text-[11px] text-slate-400 mt-1">R$ 19,98</p>
           </div>
         </div>
         <div id="boxPeriodoServ" class="hidden grid md:grid-cols-3 gap-3 mt-4 pt-3 border-t border-white/10">
@@ -317,7 +317,7 @@
 <script>
 const money = v => v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const KEY = "engecap_mo_v2";
-const PRECOS_EXTRA = { integracao: 8.90, vtSabado: 18.90 };
+const PRECOS_EXTRA = { integracao: 9.38, vtSabado: 19.98 };
 let FUNCIONARIOS = [
   // Carpinteiros
   { chapa: "18432", nome: "Carlos Alberto Silva", funcao: "Carpinteiro" },
