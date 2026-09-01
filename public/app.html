@@ -390,8 +390,7 @@ function resetar(){
   db = JSON.parse(JSON.stringify(seed));
   paiSel = db.pais[0].id;
   save();
-  aplicarAcesso();
-if(sessao){ ir(sessao.role==="apontador"?"lancamento":"home"); }
+  render();
 }
 
 
@@ -836,16 +835,49 @@ function excluirLib(filhoId, libId){
   save(); render();
 }
 
-function buscarFuncionario(){
-  var chapa = (document.getElementById("funcChapa").value||"").trim();
-  var f = FUNCIONARIOS.find(function(x){ return String(x.chapa)===String(chapa); });
+function soDigitos(s){ return String(s||"").replace(/\D/g,""); }
+function acharChapaLocal(chapa){
+  var d = soDigitos(chapa);
+  return FUNCIONARIOS.find(function(x){
+    return String(x.chapa)===String(chapa) || soDigitos(x.chapa)===d;
+  }) || null;
+}
+function aplicarFuncionario(f, chapa){
   if(f) f.funcao = canonFuncao(f.funcao);
   funcionarioAtual = f || null;
   document.getElementById("funcNome").value = f ? f.nome : "";
   document.getElementById("funcFuncao").value = f ? f.funcao : "";
-  document.getElementById("funcStatus").textContent = f ? (f.chapa + " · " + f.nome + " · " + f.funcao) : (chapa ? "Chapa não encontrada" : "Chapas: 18432-36 carp · 19201-05 arm · 20962-65 ped · 17554-58 serv");
+  var st = document.getElementById("funcStatus");
+  if(st) st.textContent = f ? (f.chapa + " · " + f.nome + " · " + f.funcao) : (chapa ? "Chapa não encontrada" : "Digite a chapa");
   if(view==="lancamento") renderLancamento();
   mostrarPeriodoServente();
+}
+function buscarFuncionario(){
+  var chapa = (document.getElementById("funcChapa").value||"").trim();
+  if(!chapa){ aplicarFuncionario(null, ""); return; }
+  var f = acharChapaLocal(chapa);
+  if(f){ aplicarFuncionario(f, chapa); return; }
+  aplicarFuncionario(null, chapa);
+  if(!sbOn()) return;
+  var d = soDigitos(chapa);
+  sb.from("funcionarios").select("chapa,nome,funcao,active").or("chapa.eq."+chapa+",chapa.eq."+d).limit(5).then(function(r){
+    if(r.error || !r.data || !r.data.length){
+      return sb.from("funcionarios").select("chapa,nome,funcao,active").limit(5000).then(function(r2){
+        if(r2.data && r2.data.length){
+          FUNCIONARIOS = r2.data.filter(function(x){ return x.active!==false; });
+          saveFuncionarios();
+          aplicarFuncionario(acharChapaLocal(chapa), chapa);
+        }
+      });
+    }
+    var hit = r.data.find(function(x){ return x.active!==false; }) || r.data[0];
+    if(hit){
+      var i = FUNCIONARIOS.findIndex(function(x){ return soDigitos(x.chapa)===soDigitos(hit.chapa); });
+      if(i>=0) FUNCIONARIOS[i]=hit; else FUNCIONARIOS.push(hit);
+      saveFuncionarios();
+      aplicarFuncionario(hit, chapa);
+    }
+  });
 }
 
 function mesmaFuncao(a,b){
@@ -2078,7 +2110,10 @@ function renderSaldo(){
 }
 
 aplicarAcesso();
-if(sessao){ ir(sessao.role==="apontador"?"lancamento":"home"); }
+if(sessao){
+  if(sbOn()) cloudLoadFuncionarios().catch(function(){});
+  ir(sessao.role==="apontador"?"lancamento":"home");
+}
 </script>
 </body>
 </html>
