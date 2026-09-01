@@ -233,17 +233,20 @@
             <p class="text-[11px] text-slate-400 mt-1">R$ 18,90</p>
           </div>
         </div>
-        <div id="boxPeriodoServ" class="hidden grid md:grid-cols-2 gap-3 mt-4 pt-3 border-t border-white/10">
+        <div id="boxPeriodoServ" class="hidden grid md:grid-cols-3 gap-3 mt-4 pt-3 border-t border-white/10">
           <div>
-            <label class="text-xs text-slate-300">Servente — entrou em</label>
+            <label class="text-xs text-slate-300">Entrou em</label>
             <input id="servDe" type="date" oninput="atualizarDiasServ()" class="w-full border-0 rounded-lg px-3 py-2 text-sm text-slate-800" />
           </div>
           <div>
-            <label class="text-xs text-slate-300">Servente — saiu em</label>
+            <label class="text-xs text-slate-300">Saiu em</label>
             <input id="servAte" type="date" oninput="atualizarDiasServ()" class="w-full border-0 rounded-lg px-3 py-2 text-sm text-slate-800" />
           </div>
-          <p id="servDias" class="md:col-span-2 text-sm font-semibold text-white">—</p>
-          <p class="md:col-span-2 text-[11px] text-slate-300">Padrão é 21 a 20. Se entrou no meio, muda a entrada. O sistema conta os dias sozinho.</p>
+          <div class="flex flex-col justify-end">
+            <p class="text-xs text-slate-300">Dias trabalhados</p>
+            <p id="servDias" class="text-lg font-bold text-white">—</p>
+          </div>
+          <p class="md:col-span-3 text-[11px] text-slate-300">Padrão 21 a 20. Se entrou ou saiu no meio do mês, muda as datas. Vale pra todas as funções.</p>
         </div>
       </section>
       <div id="listaLan" class="space-y-4 mb-6"></div>
@@ -899,7 +902,7 @@ function lancar(libId){
     trecho: t.lib.trecho,
     item: t.filho.nome,
     pai: t.pai.nome,
-    periodoTrabalho: (canonFuncao(funcionarioAtual.funcao)==="Servente" ? periodoServenteAtual() : null)
+    periodoTrabalho: periodoServenteAtual()
   });
   var qi = parseFloat(document.getElementById("qtdInt").value)||0;
   var qv = parseFloat(document.getElementById("qtdVt").value)||0;
@@ -1237,7 +1240,10 @@ function renderLancamento(){
       }).join("");
       return '<div class="border-t first:border-0">'+
         '<button onclick="toggleFunc(\''+sid+'\')" class="w-full flex justify-between items-center px-3 py-3 text-left hover:bg-slate-50">'+
-          '<div><p class="font-medium">'+g.chapa+' · '+g.nome+'</p><p class="text-xs text-slate-500">'+g.itens.length+' lançamento(s)</p></div>'+
+          '<div><p class="font-medium">'+g.chapa+' · '+g.nome+'</p><p class="text-xs text-slate-500">'+g.itens.length+' lançamento(s)'+(function(){
+            var pt = (g.itens||[]).map(function(m){ return m.periodoTrabalho; }).filter(Boolean)[0];
+            return pt ? " · "+labelPeriodoTrabalho(pt) : "";
+          })()+'</p></div>'+
           '<div class="flex items-center gap-2"><button onclick="event.stopPropagation();imprimirFolha(\''+String(g.chapa).replace(/'/g,"")+'\')" class="text-xs border px-2 py-1 rounded">'+(aprovacaoChapa(g.chapa)?"🖨️ folha":"🔒 aguarda aprovação")+'</button><p class="font-semibold">'+money(g.total)+'</p></div></button>'+
         '<div id="'+sid+'" class="hidden px-3 pb-2 bg-slate-50">'+itens+'</div></div>';
     }).join("");
@@ -1290,7 +1296,10 @@ function htmlFolha(chapa, meds, ap){
     '<div class="topo"><div><img src="'+logo+'" alt="Engecap" class="logo" /><div class="m">Folha de medição de M.O.</div></div>'+
     '<div class="m">'+o.codigo+' · '+o.nome+'<br>'+(o.cliente||"")+'<br>Competência '+(store.periodo||"")+' · '+labelFolha(store.periodo)+'</div></div>'+
     '<p><strong>Chapa:</strong> '+chapa+' &nbsp; <strong>Nome:</strong> '+nome+' &nbsp; <strong>Função:</strong> '+funcao+'</p>'+
-    (meds.some(function(m){ return m.periodoTrabalho; }) ? '<p><strong>Período trabalhado:</strong> '+labelPeriodoTrabalho((meds.find(function(m){ return m.periodoTrabalho; })||{}).periodoTrabalho)+'</p>' : '')+
+    '<p><strong>Período / dias trabalhados:</strong> '+(function(){
+      var pt = (meds.find(function(m){ return m.periodoTrabalho; })||{}).periodoTrabalho;
+      return pt ? labelPeriodoTrabalho(pt) : labelFolha(store.periodo);
+    })()+'</p>'+
     (ap ? '<p><strong>Situação:</strong> APROVADA pela engenharia · '+ap.nome+' em '+ap.em+'</p>' : '')+
 
     '<table><thead><tr><th>#</th><th>Grupo</th><th>Serviço</th><th>Trecho</th><th>Qtde</th><th>Unit.</th><th>Total</th></tr></thead><tbody>'+
@@ -1534,7 +1543,10 @@ function renderFechar(){
       return '<div class="border-t border-slate-100">'+
         '<button onclick="toggleFunc(\''+sid+'\')" class="w-full text-left px-4 py-3 hover:bg-slate-50">'+
           '<div class="grid grid-cols-12 gap-2 items-center">'+
-            '<div class="col-span-12 md:col-span-5"><p class="font-medium text-slate-800">'+g.chapa+' · '+g.nome+'</p><p class="text-[11px] text-slate-400">'+g.itens.length+' item(ns) · '+(ap?("aprovada por "+ap.nome):"pendente")+'</p></div>'+
+            '<div class="col-span-12 md:col-span-5"><p class="font-medium text-slate-800">'+g.chapa+' · '+g.nome+'</p><p class="text-[11px] text-slate-400">'+g.itens.length+' item(ns) · '+(ap?("aprovada por "+ap.nome):"pendente")+(function(){
+            var pt = (g.itens||[]).map(function(m){ return m.periodoTrabalho; }).filter(Boolean)[0];
+            return pt ? " · "+labelPeriodoTrabalho(pt) : "";
+          })()+'</p></div>'+
             '<div class="col-span-4 md:col-span-2 text-sm"><p class="text-[10px] text-slate-400">Tarefa</p><p class="font-semibold">'+money(c.tarefa)+'</p></div>'+
             '<div class="col-span-4 md:col-span-2 text-sm"><p class="text-[10px] text-emerald-600">Prêmio</p><p class="font-semibold text-emerald-700">'+money(c.premio)+'</p></div>'+
             '<div class="col-span-4 md:col-span-2 text-sm md:text-right"><p class="text-[10px] text-slate-400">Custo M.O.</p><p class="font-semibold text-blue-700">'+money(c.custo)+'</p></div>'+
@@ -1603,7 +1615,7 @@ function fmtBR(iso){
 function mostrarPeriodoServente(){
   var box = document.getElementById("boxPeriodoServ");
   if(!box) return;
-  var eh = funcionarioAtual && canonFuncao(funcionarioAtual.funcao)==="Servente";
+  var eh = !!funcionarioAtual;
   box.classList.toggle("hidden", !eh);
   if(!eh) return;
   var d = datasCompetencia(store.periodo);
