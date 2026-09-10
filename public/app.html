@@ -1425,22 +1425,45 @@ function toggleFunc(id){
   if(el) el.classList.toggle("hidden");
 }
 
-function calcFolha(totalTarefa){
-  // Aproximação da planilha — depois calibramos com os coeficientes reais
-  var salarioTributado = totalTarefa * 0.42;
-  var salarioEncargos = salarioTributado * 2.065;
-  var premio = totalTarefa - salarioTributado;
-  var vale = salarioTributado * 0.40;
-  var folha = totalTarefa - vale;
-  var custo = salarioEncargos + vale;
+function diasDoGrupo(itens){
+  if(!itens || !itens.length) return 0;
+  var pt = null;
+  for(var i=0;i<itens.length;i++){ if(itens[i].periodoTrabalho){ pt = itens[i].periodoTrabalho; break; } }
+  if(!pt) return 0;
+  if(pt.dias) return Number(pt.dias)||0;
+  return (typeof diasEntre==="function") ? diasEntre(pt.de, pt.ate) : 0;
+}
+function calcFolha(totalTarefa, funcao, dias){
+  totalTarefa = Number(totalTarefa||0);
+  dias = Number(dias||0);
+  var fn = (typeof canonFuncao==="function" ? canonFuncao(funcao) : funcao);
+  var trib, enc, regra;
+  if(fn==="Servente"){
+    trib = totalTarefa;
+    enc = trib * 2.1862;
+    regra = "servente";
+  } else if(fn==="Carpinteiro" || fn==="Armador" || fn==="Pedreiro"){
+    trib = dias * 7.3333 * 12.74;
+    enc = trib * 2.065;
+    regra = fn.toLowerCase();
+  } else {
+    trib = totalTarefa * 0.42;
+    enc = trib * 2.065;
+    regra = "tarefa";
+  }
+  var premio = Math.max(0, totalTarefa - trib);
+  var adianta = enc * 0.4;
+  var folha = totalTarefa - adianta;
   return {
     tarefa: totalTarefa,
-    tributado: salarioTributado,
-    encargos: salarioEncargos,
+    tributado: trib,
+    encargos: enc,
     premio: premio,
-    vale: vale,
+    vale: adianta,
     folha: folha,
-    custo: custo
+    custo: enc + premio,
+    dias: dias,
+    regra: regra
   };
 }
 
@@ -1518,7 +1541,7 @@ function renderFechar(){
   var totalTarefa = 0, custoTotal = 0, premioTotal = 0, valeTotal = 0, qtdFunc = 0;
   funcoes.forEach(function(fn){
     Object.keys(porFuncao[fn]).forEach(function(k){
-      var c = calcFolha(porFuncao[fn][k].tarefa);
+      var c = calcFolha(porFuncao[fn][k].tarefa, fn, diasDoGrupo(porFuncao[fn][k].itens));
       qtdFunc++;
       totalTarefa += c.tarefa;
       custoTotal += c.custo;
@@ -1551,12 +1574,12 @@ function renderFechar(){
     var keys = Object.keys(grupos).sort(function(a,b){ return grupos[b].tarefa - grupos[a].tarefa; });
     var subT = 0, subC = 0, subP = 0;
     keys.forEach(function(k){
-      var c = calcFolha(grupos[k].tarefa);
+      var c = calcFolha(grupos[k].tarefa, fn, diasDoGrupo(grupos[k].itens));
       subT += c.tarefa; subC += c.custo; subP += c.premio;
     });
     var linhas = keys.map(function(k){
       var g = grupos[k];
-      var c = calcFolha(g.tarefa);
+      var c = calcFolha(g.tarefa, fn, diasDoGrupo(g.itens));
       var sid = "fec-"+fn.replace(/[^a-zA-Z0-9]/g,"")+"-"+String(k).replace(/[^a-zA-Z0-9]/g,"");
       var ap = aprovacaoChapa(g.chapa);
       var btAprov = podeAprovar()
@@ -1591,7 +1614,8 @@ function renderFechar(){
             '<div class="bg-white border rounded-lg p-2"><p class="text-slate-400">Tributado (c)</p><p class="font-semibold">'+money(c.tributado)+'</p></div>'+
             '<div class="bg-white border rounded-lg p-2"><p class="text-slate-400">c/ Encargos (d)</p><p class="font-semibold">'+money(c.encargos)+'</p></div>'+
             '<div class="bg-white border rounded-lg p-2"><p class="text-slate-400">Prêmio (h)</p><p class="font-semibold text-emerald-700">'+money(c.premio)+'</p></div>'+
-            '<div class="bg-white border rounded-lg p-2"><p class="text-slate-400">Vale</p><p class="font-semibold">'+money(c.vale)+'</p></div>'+
+            '<div class="bg-white border rounded-lg p-2"><p class="text-slate-400">Adiantamento (40% d)</p><p class="font-semibold">'+money(c.vale)+'</p></div>'+
+            '<div class="bg-white border rounded-lg p-2"><p class="text-slate-400">Folha de pagamento (e − adiant.)</p><p class="font-semibold">'+money(c.folha)+'</p></div>'+
             '<div class="bg-white border rounded-lg p-2"><p class="text-slate-400">Custo total M.O.</p><p class="font-semibold text-blue-700">'+money(c.custo)+'</p></div>'+
           '</div></div></div>';
     }).join("");
