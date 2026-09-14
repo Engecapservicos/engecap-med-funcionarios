@@ -53,6 +53,7 @@
         <label id="lblPeriodo" class="hidden text-[11px] text-slate-400 px-1">Competência</label>
         <select id="selPeriodo" onchange="trocarPeriodo(this.value)" class="hidden w-full bg-white text-slate-800 border-0 rounded-xl px-3 py-2 text-sm font-medium"></select>
         <p id="userChip" class="hidden text-xs px-3 py-2 rounded-xl bg-white/10"></p>
+        <button type="button" onclick="sincronizarNuvem()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-300 hover:bg-white/10">☁️ Sincronizar nuvem</button>
         <button onclick="resetar()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-400 hover:bg-white/10">♻️ Reset dados</button>
         <button onclick="sair()" id="btnSair" class="hidden w-full text-left px-3 py-2 rounded-xl text-sm bg-rose-500/80 hover:bg-rose-500">🚪 Sair</button>
       </div>
@@ -407,6 +408,20 @@ function loadStore(){
     dados: {}
   };
 }
+
+async function sincronizarNuvem(){
+  if(!sbOn()) return alert("Nuvem desligada neste aparelho (falta sb-config.js).");
+  try{
+    salvarDbNaObra();
+    await cloudPushStore();
+    await cloudPullStore();
+    if(store.obraId) carregarDbDaObra();
+    render();
+    alert("Sincronizado com a nuvem.");
+  }catch(e){
+    alert("Falha na nuvem: "+e.message);
+  }
+}
 function saveStore(){
   localStorage.setItem(STORE_KEY, JSON.stringify(store));
   if(sbOn()) cloudPushStore().catch(function(e){ console.warn(e); });
@@ -474,8 +489,9 @@ async function cloudPullStore(){
   var pers = await sb.from("mo_periodo").select("*");
   store.dados = {};
   (pers.data||[]).forEach(function(c){
-    store.dados[c.obra_id+"|"+c.periodo] = { medicoes:c.medicoes||[], libs:c.libs||{} };
+    store.dados[c.obra_id+"|"+c.periodo] = { medicoes:c.medicoes||[], libs:c.libs||{}, aprovacoes:c.aprovacoes||{} };
   });
+  localStorage.setItem(STORE_KEY, JSON.stringify(store));
 }
 async function cloudDeleteObra(id){
   if(!sbOn() || !id) return;
@@ -513,7 +529,8 @@ async function cloudPushStore(){
     var parts = key.split("|");
     var d = store.dados[key];
     var r3 = await sb.from("mo_periodo").upsert({
-      obra_id:parts[0], periodo:parts[1], medicoes:d.medicoes||[], libs:d.libs||{}
+      obra_id:parts[0], periodo:parts[1], medicoes:d.medicoes||[], libs:d.libs||{},
+      updated_at: new Date().toISOString()
     });
     if(r3.error) console.warn(r3.error);
   }
@@ -576,6 +593,7 @@ async function fazerLogin(){
       u = await cloudLogin(user, senha);
       await cloudLoadFuncionarios();
       await cloudPullStore();
+      if(store.obraId) carregarDbDaObra();
     } catch(e){
       box.textContent = "Supabase: "+e.message;
       box.classList.remove("hidden");
@@ -2007,17 +2025,31 @@ function novaObra(){
 function abrirObra(id){
   store.obraId = id;
   if(!store.periodo) store.periodo = "2026-08";
-  saveStore();
-  carregarDbDaObra();
-  ir(sessao.role==="apontador"?"lancamento":"cadastro");
+  function segue(){
+    carregarDbDaObra();
+    ir(sessao && sessao.role==="apontador"?"lancamento":"cadastro");
+  }
+  if(sbOn()){
+    cloudPullStore().then(segue).catch(function(){ segue(); });
+  } else segue();
 }
 
 function trocarPeriodo(k){
   salvarDbNaObra();
   store.periodo = k;
-  saveStore();
-  carregarDbDaObra();
-  render();
+  function segue(){
+    carregarDbDaObra();
+    render();
+  }
+  if(sbOn()){
+    cloudPullStore().then(function(){
+      store.periodo = k;
+      segue();
+    }).catch(segue);
+  } else {
+    saveStore();
+    segue();
+  }
 }
 
 function vazioDb(){
@@ -2135,8 +2167,17 @@ function renderSaldo(){
 
 aplicarAcesso();
 if(sessao){
-  if(sbOn()) cloudLoadFuncionarios().catch(function(){});
-  ir(sessao.role==="apontador"?"lancamento":"home");
+  if(sbOn()){
+    cloudLoadFuncionarios().catch(function(){});
+    cloudPullStore().then(function(){
+      if(store.obraId) carregarDbDaObra();
+      ir(sessao.role==="apontador"?"lancamento":"home");
+    }).catch(function(){
+      ir(sessao.role==="apontador"?"lancamento":"home");
+    });
+  } else {
+    ir(sessao.role==="apontador"?"lancamento":"home");
+  }
 }
 </script>
 </body>
