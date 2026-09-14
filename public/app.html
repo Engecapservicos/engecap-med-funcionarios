@@ -124,6 +124,15 @@
             <option>Outros</option>
           </select>
         </div>
+        <div class="mt-4 pt-4 border-t">
+          <p class="text-sm font-medium mb-1">ADM / apontador desta obra</p>
+          <p class="text-[11px] text-slate-500 mb-2">Quem for vinculado vê esta obra no menu Obras e lança medição nela. Pode ser mais de um.</p>
+          <div class="flex gap-2 mb-2">
+            <input id="obraAdmUser" placeholder="usuário do ADM (ex: joao)" class="border rounded-lg px-3 py-2 text-sm flex-1" />
+            <button type="button" onclick="vincularAdmObra()" class="bg-blue-600 text-white text-sm px-3 py-2 rounded-lg">Vincular</button>
+          </div>
+          <div id="listaAdmsObra" class="flex flex-wrap gap-2 text-sm"></div>
+        </div>
       </section>
       <div class="grid md:grid-cols-12 gap-5">
         <section class="md:col-span-4 bg-white rounded-2xl border overflow-hidden">
@@ -479,17 +488,21 @@ async function cloudPullStore(){
   var obras = await sb.from("mo_obras").select("*").eq("active", true);
   if(obras.error) throw new Error(obras.error.message);
   store.obras = (obras.data||[]).map(function(o){
-    return {id:o.id, codigo:o.codigo||"", nome:o.nome, cliente:o.cliente||"", tipo:o.tipo||"Estrutura"};
+    return {id:o.id, codigo:o.codigo||"", nome:o.nome, cliente:o.cliente||"", tipo:o.tipo||"Estrutura", adms:o.adms||[]};
   });
   var cads = await sb.from("mo_cadastro").select("*");
   store.cadastro = {};
   (cads.data||[]).forEach(function(c){
-    store.cadastro[c.obra_id] = { pais:c.pais||[], filhos:c.filhos||[] };
+    store.cadastro[c.obra_id] = { pais:c.pais||[], filhos:c.filhos||[], adms:c.adms||[] };
   });
   var pers = await sb.from("mo_periodo").select("*");
   store.dados = {};
   (pers.data||[]).forEach(function(c){
     store.dados[c.obra_id+"|"+c.periodo] = { medicoes:c.medicoes||[], libs:c.libs||{}, aprovacoes:c.aprovacoes||{} };
+  });
+  (store.obras||[]).forEach(function(o){
+    if((!o.adms || !o.adms.length) && store.cadastro[o.id] && store.cadastro[o.id].adms)
+      o.adms = store.cadastro[o.id].adms;
   });
   localStorage.setItem(STORE_KEY, JSON.stringify(store));
 }
@@ -509,7 +522,7 @@ async function cloudPushStore(){
   for(var i=0;i<obras.length;i++){
     var o = obras[i];
     var r = await sb.from("mo_obras").upsert({
-      id:o.id, codigo:o.codigo||"", nome:o.nome, cliente:o.cliente||"", tipo:o.tipo||"Estrutura", active:true
+      id:o.id, codigo:o.codigo||"", nome:o.nome, cliente:o.cliente||"", tipo:o.tipo||"Estrutura", active:true, adms:o.adms||[]
     });
     if(r.error) console.warn(r.error);
   }
@@ -519,7 +532,7 @@ async function cloudPushStore(){
     var id = ids[j];
     var cad = store.cadastro[id];
     var r2 = await sb.from("mo_cadastro").upsert({
-      obra_id:id, pais:cad.pais||[], filhos:cad.filhos||[]
+      obra_id:id, pais:cad.pais||[], filhos:cad.filhos||[], adms:cad.adms||[]
     });
     if(r2.error) console.warn(r2.error);
   }
@@ -555,7 +568,7 @@ function pode(tela){
   if(!sessao) return false;
   if(sessao.role==="admin") return true;
   if(sessao.role==="engenheiro") return tela!=="admin";
-  if(sessao.role==="apontador") return tela==="lancamento";
+  if(sessao.role==="apontador") return tela==="lancamento" || tela==="home";
   return false;
 }
 function aplicarAcesso(){
@@ -578,6 +591,8 @@ function aplicarAcesso(){
   if(adm) adm.classList.toggle("hidden", sessao.role!=="admin");
   var rst = document.querySelector("button[onclick=\"resetar()\"]");
   if(rst) rst.classList.toggle("hidden", sessao.role==="apontador");
+  var nb = document.getElementById("btnNovaObra");
+  if(nb) nb.classList.toggle("hidden", sessao.role==="apontador");
 }
 
 async function fazerLogin(){
@@ -1031,6 +1046,53 @@ function excluirMed(id){
   save(); render();
 }
 
+
+function userAtual(){
+  return ((sessao&&sessao.user)||"").toLowerCase();
+}
+function obraTemAdm(o, user){
+  user = String(user||"").toLowerCase();
+  return (o.adms||[]).some(function(a){ return String(a).toLowerCase()===user; });
+}
+function obrasDoUsuario(){
+  var obras = store.obras||[];
+  if(!sessao || sessao.role==="admin" || sessao.role==="engenheiro") return obras;
+  return obras.filter(function(o){ return obraTemAdm(o, userAtual()); });
+}
+function renderAdmsObra(){
+  var box = document.getElementById("listaAdmsObra");
+  if(!box) return;
+  var o = (store.obras||[]).find(function(x){ return x.id===store.obraId; });
+  var adms = (o && o.adms) ? o.adms : [];
+  box.innerHTML = adms.length ? adms.map(function(a){
+    return '<span class="inline-flex items-center gap-2 bg-slate-100 border rounded-full px-3 py-1">'+a+
+      '<button type="button" onclick="desvincularAdmObra(\\''+String(a).replace(/'/g,"")+'\\')" class="text-slate-400 hover:text-red-600">×</button></span>';
+  }).join("") : '<span class="text-xs text-slate-400">Nenhum ADM vinculado ainda.</span>';
+}
+function vincularAdmObra(){
+  if(sessao && sessao.role==="apontador") return alert("Só engenheiro/admin vincula");
+  var o = (store.obras||[]).find(function(x){ return x.id===store.obraId; });
+  if(!o) return alert("Abre uma obra");
+  var u = (document.getElementById("obraAdmUser").value||"").trim().toLowerCase();
+  if(!u) return alert("Usuário do ADM");
+  if(u.indexOf("@")>=0) u = u.split("@")[0];
+  o.adms = o.adms || [];
+  if(obraTemAdm(o,u)) return alert("Já vinculado");
+  o.adms.push(u);
+  if(store.cadastro && store.cadastro[o.id]) store.cadastro[o.id].adms = o.adms;
+  document.getElementById("obraAdmUser").value = "";
+  saveStore();
+  renderAdmsObra();
+}
+function desvincularAdmObra(u){
+  if(sessao && sessao.role==="apontador") return;
+  var o = (store.obras||[]).find(function(x){ return x.id===store.obraId; });
+  if(!o) return;
+  o.adms = (o.adms||[]).filter(function(a){ return String(a).toLowerCase()!==String(u).toLowerCase(); });
+  if(store.cadastro && store.cadastro[o.id]) store.cadastro[o.id].adms = o.adms;
+  saveStore();
+  renderAdmsObra();
+}
 function preencherDadosObra(){
   var o = (store.obras||[]).find(function(x){ return x.id===store.obraId; });
   var c = document.getElementById("obraCodigo");
@@ -1039,6 +1101,7 @@ function preencherDadosObra(){
   document.getElementById("obraNome").value = o ? (o.nome||"") : "";
   document.getElementById("obraCliente").value = o ? (o.cliente||"") : "";
   document.getElementById("obraTipo").value = o && o.tipo ? o.tipo : "Estrutura";
+  renderAdmsObra();
 }
 function salvarDadosObra(){
   if(!store.obraId) return alert("Abre uma obra primeiro");
@@ -1048,7 +1111,9 @@ function salvarDadosObra(){
   o.nome = (document.getElementById("obraNome").value||"").trim();
   o.cliente = (document.getElementById("obraCliente").value||"").trim();
   o.tipo = document.getElementById("obraTipo").value;
+  o.adms = o.adms || [];
   if(!o.nome) return alert("Nome da obra");
+  if(store.cadastro && store.cadastro[o.id]) store.cadastro[o.id].adms = o.adms;
   saveStore();
   if(typeof addLog==="function") addLog("Atualizou obra "+o.codigo+" "+o.nome);
   renderHeader();
@@ -1996,14 +2061,15 @@ function subirCsv(ev){
 function renderHome(){
   var box = document.getElementById("listaObras");
   if(!box) return;
-  var obras = store.obras||[];
+  var obras = obrasDoUsuario();
+  var apont = sessao && sessao.role==="apontador";
   if(!obras.length){
-    box.innerHTML = '<div class="col-span-3 bg-white rounded-2xl border p-6 text-sm text-slate-500">Nenhuma obra. Engenheiro clica em + Nova obra.</div>';
+    box.innerHTML = '<div class="col-span-3 bg-white rounded-2xl border p-6 text-sm text-slate-500">'+(apont?"Nenhuma obra vinculada ao seu usuário. Pede pro engenheiro te colocar na obra.":"Nenhuma obra. Engenheiro clica em + Nova obra.")+'</div>';
     return;
   }
   box.innerHTML = obras.map(function(o){
     return '<div class="bg-white rounded-2xl border-2 border-slate-200 p-5 hover:border-blue-400 relative">'+
-      '<button onclick="excluirObra(\''+o.id+'\',event)" class="absolute top-3 right-3 text-xs text-slate-400 hover:text-red-600">excluir</button>'+
+      (apont?'':'<button onclick="excluirObra(\''+o.id+'\',event)" class="absolute top-3 right-3 text-xs text-slate-400 hover:text-red-600">excluir</button>')+
       '<button onclick="abrirObra(\''+o.id+'\')" class="text-left w-full">'+
       '<p class="text-3xl mb-2">🏗️</p><p class="font-bold">'+o.nome+'</p>'+
       '<p class="text-xs text-slate-500">'+((o.codigo||"")+" · "+(o.cliente||""))+'</p></button></div>';
@@ -2171,12 +2237,12 @@ if(sessao){
     cloudLoadFuncionarios().catch(function(){});
     cloudPullStore().then(function(){
       if(store.obraId) carregarDbDaObra();
-      ir(sessao.role==="apontador"?"lancamento":"home");
+      ir("home");
     }).catch(function(){
-      ir(sessao.role==="apontador"?"lancamento":"home");
+      ir("home");
     });
   } else {
-    ir(sessao.role==="apontador"?"lancamento":"home");
+    ir("home");
   }
 }
 </script>
