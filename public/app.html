@@ -1065,10 +1065,14 @@ function renderAdmsObra(){
   var o = (store.obras||[]).find(function(x){ return x.id===store.obraId; });
   var adms = (o && o.adms) ? o.adms : [];
   box.innerHTML = adms.length ? adms.map(function(a){
-    return '<span class="inline-flex items-center gap-2 bg-slate-100 border rounded-full px-3 py-1">'+a+
-      '<button type="button" onclick="desvincularAdmObra(\\''+String(a).replace(/'/g,"")+'\\')" class="text-slate-400 hover:text-red-600">×</button></span>';
+    var key = String(a).replace(/[^a-zA-Z0-9_-]/g,"");
+    return '<span class="inline-flex items-center gap-2 bg-slate-100 border rounded-full px-3 py-1">'+a+' <button type="button" class="adm-x text-slate-400 hover:text-red-600" data-adm="'+key+'">x</button></span>';
   }).join("") : '<span class="text-xs text-slate-400">Nenhum ADM vinculado ainda.</span>';
+  box.querySelectorAll(".adm-x").forEach(function(btn){
+    btn.onclick = function(){ desvincularAdmObra(btn.getAttribute("data-adm")); };
+  });
 }
+
 function vincularAdmObra(){
   if(sessao && sessao.role==="apontador") return alert("Só engenheiro/admin vincula");
   var o = (store.obras||[]).find(function(x){ return x.id===store.obraId; });
