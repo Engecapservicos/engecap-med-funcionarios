@@ -470,10 +470,20 @@ async function cloudLogin(user, senha){
 }
 async function cloudLoadFuncionarios(){
   if(!sbOn()) return;
-  var r = await sb.from("funcionarios").select("chapa,nome,funcao,active");
-  if(r.error) { console.warn(r.error); throw new Error(r.error.message); }
-  var arr = (r.data||[]).filter(function(x){ return x.active!==false; });
+  var all = [];
+  var from = 0, page = 1000;
+  while(true){
+    var r = await sb.from("funcionarios").select("chapa,nome,funcao,active").range(from, from+page-1);
+    if(r.error) { console.warn(r.error); throw new Error(r.error.message); }
+    var chunk = r.data||[];
+    all = all.concat(chunk);
+    if(chunk.length < page) break;
+    from += page;
+    if(from > 20000) break;
+  }
+  var arr = all.filter(function(x){ return x.active!==false; });
   if(arr.length) FUNCIONARIOS = arr;
+  saveFuncionarios();
   var st = document.getElementById("nuvemStatus");
   if(st) st.textContent = "Nuvem: "+arr.length+" funcionário(s).";
 }
