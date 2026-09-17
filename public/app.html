@@ -508,7 +508,12 @@ async function cloudPullStore(){
   var pers = await sb.from("mo_periodo").select("*");
   store.dados = {};
   (pers.data||[]).forEach(function(c){
-    store.dados[c.obra_id+"|"+c.periodo] = { medicoes:c.medicoes||[], libs:c.libs||{}, aprovacoes:c.aprovacoes||{} };
+    var libs = c.libs||{};
+    store.dados[c.obra_id+"|"+c.periodo] = {
+      medicoes:c.medicoes||[],
+      libs:libs,
+      aprovacoes: c.aprovacoes || libs.__aprovacoes || {}
+    };
   });
   (store.obras||[]).forEach(function(o){
     if((!o.adms || !o.adms.length) && store.cadastro[o.id] && store.cadastro[o.id].adms)
@@ -551,8 +556,10 @@ async function cloudPushStore(){
     var key = ks[k];
     var parts = key.split("|");
     var d = store.dados[key];
+    var libsPush = d.libs || {};
+    libsPush.__aprovacoes = d.aprovacoes || libsPush.__aprovacoes || {};
     var r3 = await sb.from("mo_periodo").upsert({
-      obra_id:parts[0], periodo:parts[1], medicoes:d.medicoes||[], libs:d.libs||{},
+      obra_id:parts[0], periodo:parts[1], medicoes:d.medicoes||[], libs:libsPush,
       updated_at: new Date().toISOString()
     });
     if(r3.error) console.warn(r3.error);
@@ -2190,9 +2197,11 @@ function carregarDbDaObra(){
       return copy;
     }),
     medicoes: per.medicoes || [],
-    aprovacoes: per.aprovacoes || {}
+    aprovacoes: per.aprovacoes || (per.libs && per.libs.__aprovacoes) || {}
   };
-  if(!db.aprovacoes) db.aprovacoes = {};
+  if(!db.aprovacoes || !Object.keys(db.aprovacoes).length){
+    if(per.libs && per.libs.__aprovacoes) db.aprovacoes = per.libs.__aprovacoes;
+  }
   paiSel = db.pais[0] ? db.pais[0].id : null;
 }
 
@@ -2208,6 +2217,7 @@ function salvarDbNaObra(){
   store.dados = store.dados || {};
   var libs = {};
   (db.filhos||[]).forEach(function(f){ libs[String(f.id)] = f.liberacoes||[]; });
+  libs.__aprovacoes = db.aprovacoes||{};
   store.dados[chaveDados()] = { medicoes: db.medicoes||[], libs: libs, aprovacoes: db.aprovacoes||{} };
   saveStore();
 }
