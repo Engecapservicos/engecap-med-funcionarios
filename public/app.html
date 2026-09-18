@@ -283,6 +283,8 @@
             </div>
             <button onclick="buscarChapaResumo()" class="bg-slate-800 text-white text-sm px-3 py-2 rounded-lg">Pesquisar</button>
             <button onclick="limparBuscaChapa()" class="border text-sm px-3 py-2 rounded-lg">Limpar</button>
+            <button type="button" id="btnAprovarSel" onclick="aprovarSelecionadas()" class="bg-blue-600 text-white text-sm px-3 py-2 rounded-lg">Aprovar selecionadas</button>
+            <button type="button" id="btnAprovarTodas" onclick="aprovarTodasPendentes()" class="border border-blue-600 text-blue-700 text-sm px-3 py-2 rounded-lg">Aprovar todas pendentes</button>
           </div>
         </div>
         <p id="buscaChapaInfo" class="text-xs text-slate-500 mb-3 hidden"></p>
@@ -1483,18 +1485,77 @@ function aprovacaoChapa(chapa){
 function podeAprovar(){
   return sessao && (sessao.role==="engenheiro" || sessao.role==="admin");
 }
-function aprovarMedicao(chapa){
-  if(!podeAprovar()) return alert("Só engenheiro/admin aprova");
-  db.aprovacoes = db.aprovacoes || {};
-  db.aprovacoes[String(chapa)] = {
-    por: sessao.user || sessao.email,
-    nome: sessao.user || "Engenharia",
+function carimboAprovacao(){
+  return {
+    por: (sessao&&sessao.user) || (sessao&&sessao.email),
+    nome: (sessao&&sessao.user) || "Engenharia",
     em: new Date().toLocaleString("pt-BR"),
     status: "aprovado"
   };
+}
+function aprovarMedicao(chapa, silencioso){
+  if(!podeAprovar()) return alert("Só engenheiro/admin aprova");
+  db.aprovacoes = db.aprovacoes || {};
+  db.aprovacoes[String(chapa)] = carimboAprovacao();
+  if(!silencioso){
+    save();
+    render();
+    alert("Medição da chapa "+chapa+" aprovada.");
+  }
+}
+
+function selAprov(){
+  if(!window._selAprov) window._selAprov = {};
+  return window._selAprov;
+}
+function toggleSelAprov(chapa, ev){
+  if(ev) ev.stopPropagation();
+  var s = selAprov();
+  if(s[chapa]) delete s[chapa]; else s[chapa] = true;
+}
+function marcarGrupo(fn, on){
+  (db.medicoes||[]).forEach(function(m){
+    if(String(m.funcao||"")!==String(fn)) return;
+    var c = String(m.chapa||"");
+    if(!c || aprovacaoChapa(c)) return;
+    if(on) selAprov()[c] = true; else delete selAprov()[c];
+  });
+  renderFechar();
+}
+function aprovarSelecionadas(){
+  var s = selAprov();
+  var chapas = Object.keys(s).filter(function(c){ return s[c] && !aprovacaoChapa(c); });
+  if(!chapas.length) return alert("Marca as medições pendentes que quer aprovar.");
+  aprovarLista(chapas, "as selecionadas");
+  window._selAprov = {};
+}
+function chapasPendentes(funcaoFiltro){
+  var vistos = {};
+  var out = [];
+  (db.medicoes||[]).forEach(function(m){
+    var c = String(m.chapa||"");
+    if(!c || vistos[c]) return;
+    if(funcaoFiltro && String(m.funcao||"")!==String(funcaoFiltro)) return;
+    vistos[c] = true;
+    if(!aprovacaoChapa(c)) out.push(c);
+  });
+  return out;
+}
+function aprovarLista(chapas, rotulo){
+  if(!podeAprovar()) return alert("Só engenheiro/admin aprova");
+  if(!chapas.length) return alert("Não tem medição pendente"+(rotulo?(" em "+rotulo):""));
+  if(!confirm("Aprovar "+chapas.length+" medição(ões)"+(rotulo?(" de "+rotulo):"")+"?")) return;
+  chapas.forEach(function(c){ aprovarMedicao(c, true); });
   save();
   render();
-  alert("Medição da chapa "+chapa+" aprovada.");
+  alert(chapas.length+" medição(ões) aprovadas. Sincroniza a nuvem pra o apontador ver.");
+}
+function aprovarTodasPendentes(){
+  var filtro = window._resumoFiltro || "";
+  aprovarLista(chapasPendentes(filtro), filtro||"o período");
+}
+function aprovarFuncao(fn){
+  aprovarLista(chapasPendentes(fn), fn);
 }
 function reprovarMedicao(chapa){
   if(!podeAprovar()) return alert("Só engenheiro/admin");
@@ -1666,6 +1727,11 @@ function renderFechar(){
     chips += '<button onclick="filtrarResumo(\''+fn+'\')" class="text-xs px-3 py-1.5 rounded-full border '+(filtro===fn?"bg-blue-600 text-white border-blue-600":"bg-white text-slate-600")+'">'+fn+' · '+n+'</button>';
   });
   document.getElementById("fecFiltros").innerHTML = chips;
+  var btAll = document.getElementById("btnAprovarTodas");
+  if(btAll) btAll.classList.toggle("hidden", !podeAprovar());
+  var btSel = document.getElementById("btnAprovarSel");
+  if(btSel) btSel.classList.toggle("hidden", !podeAprovar());
+
 
   var visiveis = filtro ? funcoes.filter(function(fn){ return fn===filtro; }) : funcoes;
   if(!funcoes.length){
@@ -1702,7 +1768,8 @@ function renderFechar(){
       return '<div class="border-t border-slate-100">'+
         '<button onclick="toggleFunc(\''+sid+'\')" class="w-full text-left px-4 py-3 hover:bg-slate-50">'+
           '<div class="grid grid-cols-12 gap-2 items-center">'+
-            '<div class="col-span-12 md:col-span-5"><p class="font-medium text-slate-800">'+g.chapa+' · '+g.nome+'</p><p class="text-[11px] text-slate-400">'+g.itens.length+' item(ns) · '+(ap?("aprovada por "+ap.nome):"pendente")+(function(){
+            (podeAprovar() && !ap ? '<div class="col-span-12 md:col-span-1" onclick="event.stopPropagation()"><input type="checkbox" class="w-4 h-4" '+(selAprov()[String(g.chapa)]?"checked":"")+' onchange="toggleSelAprov(\''+String(g.chapa)+'\',event)" /></div>' : '<div class="col-span-12 md:col-span-1"></div>')+
+            '<div class="col-span-12 md:col-span-4"><p class="font-medium text-slate-800">'+g.chapa+' · '+g.nome+'</p><p class="text-[11px] text-slate-400">'+g.itens.length+' item(ns) · '+(ap?("aprovada por "+ap.nome):"pendente")+(function(){
             var pt = (g.itens||[]).map(function(m){ return m.periodoTrabalho; }).filter(Boolean)[0];
             return pt ? " · "+labelPeriodoTrabalho(pt) : "";
           })()+'</p></div>'+
@@ -1727,6 +1794,9 @@ function renderFechar(){
     return '<section class="bg-white rounded-2xl border-2 border-slate-300 overflow-hidden shadow-sm">'+
       '<header class="px-5 py-4 bg-slate-800 text-white flex flex-wrap justify-between items-center gap-3">'+
         '<div><p class="text-[11px] uppercase tracking-wide text-slate-300">Função</p><h3 class="font-bold text-lg">'+fn+'</h3><p class="text-[11px] text-slate-300">'+keys.length+' funcionário(s)</p></div>'+
+        (podeAprovar()?'<div class="flex gap-2">'+
+          '<button type="button" onclick="marcarGrupo(\''+String(fn).replace(/'/g,"")+'\',true)" class="text-xs bg-white/15 text-white px-3 py-1.5 rounded-lg">Marcar '+fn+'</button>'+
+          '<button type="button" onclick="aprovarFuncao(\''+String(fn).replace(/'/g,"")+'\')" class="text-xs bg-blue-500 hover:bg-blue-400 text-white px-3 py-1.5 rounded-lg">Aprovar todos '+fn+'</button></div>':'')+
         '<div class="flex gap-6 text-right text-sm">'+
           '<div><p class="text-[10px] text-slate-300">Tarefa</p><p class="font-semibold">'+money(subT)+'</p></div>'+
           '<div><p class="text-[10px] text-emerald-300">Prêmio</p><p class="font-semibold text-emerald-300">'+money(subP)+'</p></div>'+
