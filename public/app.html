@@ -171,6 +171,12 @@
               <div><label class="text-xs text-slate-500">Armador R$</label><input id="vuArm" type="number" step="0.01" class="w-full border rounded-lg px-3 py-2 text-sm" /></div>
               <div><label class="text-xs text-slate-500">Pedreiro R$</label><input id="vuPed" type="number" step="0.01" class="w-full border rounded-lg px-3 py-2 text-sm" /></div>
               <div><label class="text-xs text-slate-500">Servente R$</label><input id="vuServ" type="number" step="0.01" class="w-full border rounded-lg px-3 py-2 text-sm" /></div>
+              <div class="md:col-span-2 text-[11px] uppercase tracking-wide text-slate-400 pt-2">ADM</div>
+              <div><label class="text-xs text-slate-500">Mestre R$</label><input id="vuMestre" type="number" step="0.01" class="w-full border rounded-lg px-3 py-2 text-sm" /></div>
+              <div><label class="text-xs text-slate-500">Encarregado R$</label><input id="vuEnc" type="number" step="0.01" class="w-full border rounded-lg px-3 py-2 text-sm" /></div>
+              <div><label class="text-xs text-slate-500">Apontador R$</label><input id="vuApont" type="number" step="0.01" class="w-full border rounded-lg px-3 py-2 text-sm" /></div>
+              <div><label class="text-xs text-slate-500">Téc. segurança R$</label><input id="vuTec" type="number" step="0.01" class="w-full border rounded-lg px-3 py-2 text-sm" /></div>
+              <div><label class="text-xs text-slate-500">Sinaleiro R$</label><input id="vuSina" type="number" step="0.01" class="w-full border rounded-lg px-3 py-2 text-sm" /></div>
             </div>
             <div class="flex flex-wrap gap-2 justify-between">
               <div class="flex gap-2">
@@ -672,7 +678,12 @@ function canonFuncao(s){
   if(/carp|forma/.test(n)) return "Carpinteiro";
   if(/armad|ferro|aco/.test(n)) return "Armador";
   if(/pedr|alven|reboco/.test(n)) return "Pedreiro";
-  if(/serv|ajud|serven/.test(n)) return "Servente";
+  if(/sinaleiro|sinal/.test(n)) return "Sinaleiro";
+  if(/tecnico.*segur|seguranca|tecseg/.test(n)) return "Técnico de Segurança";
+  if(/apontador/.test(n)) return "Apontador";
+  if(/encarreg/.test(n)) return "Encarregado";
+  if(/mestre/.test(n)) return "Mestre";
+  if(/servente|ajudante|^serv$/.test(n) || n==="serv") return "Servente";
   return s ? String(s).trim() : s;
 }
 function vuFuncao(funcoes, funcao){
@@ -765,7 +776,12 @@ function lerFuncoes(){
     Carpinteiro: Number(document.getElementById("vuCarp").value)||0,
     Armador: Number(document.getElementById("vuArm").value)||0,
     Pedreiro: Number(document.getElementById("vuPed").value)||0,
-    Servente: Number(document.getElementById("vuServ").value)||0
+    Servente: Number(document.getElementById("vuServ").value)||0,
+    Mestre: Number(document.getElementById("vuMestre").value)||0,
+    Encarregado: Number(document.getElementById("vuEnc").value)||0,
+    Apontador: Number(document.getElementById("vuApont").value)||0,
+    "Técnico de Segurança": Number(document.getElementById("vuTec").value)||0,
+    Sinaleiro: Number(document.getElementById("vuSina").value)||0
   };
 }
 function preencherFuncoes(f){
@@ -774,6 +790,14 @@ function preencherFuncoes(f){
   document.getElementById("vuArm").value = f.Armador || "";
   document.getElementById("vuPed").value = f.Pedreiro || "";
   document.getElementById("vuServ").value = f.Servente || "";
+  var mestre = document.getElementById("vuMestre");
+  if(mestre){
+    mestre.value = f.Mestre || "";
+    document.getElementById("vuEnc").value = f.Encarregado || "";
+    document.getElementById("vuApont").value = f.Apontador || "";
+    document.getElementById("vuTec").value = f["Técnico de Segurança"] || "";
+    document.getElementById("vuSina").value = f.Sinaleiro || "";
+  }
 }
 function salvarFilho(){
   if(!paiSel) return;
@@ -1603,10 +1627,11 @@ function calcFolha(totalTarefa, funcao, dias){
   dias = Number(dias||0);
   var fn = (typeof canonFuncao==="function" ? canonFuncao(funcao) : funcao);
   var trib, enc, regra;
-  if(fn==="Servente"){
+  var adms = {Servente:1, Mestre:1, Encarregado:1, Apontador:1, "Técnico de Segurança":1, Sinaleiro:1};
+  if(adms[fn]){
     trib = totalTarefa;
     enc = trib * 2.1862;
-    regra = "servente";
+    regra = fn==="Servente" ? "servente" : "adm";
   } else if(fn==="Carpinteiro" || fn==="Armador" || fn==="Pedreiro"){
     trib = dias * 7.3333 * 12.74;
     enc = trib * 2.065;
