@@ -47,6 +47,7 @@
         <button onclick="ir('lancamento')" id="navLan" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-white/10">✍️ Lançar medição</button>
         <button onclick="ir('fechar')" id="navFec" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-white/10">📊 Resumo</button>
         <button onclick="ir('saldo')" id="navSal" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-white/10">📦 Controle de saldo</button>
+        <button onclick="ir('previsao')" id="navPrev" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-white/10">📈 Previsão</button>
         <button onclick="ir('admin')" id="navAdm" class="hidden w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-white/10">🛡️ Admin</button>
       </nav>
       <div class="mt-4 space-y-2">
@@ -70,6 +71,21 @@
         <button id="btnNovaObra" onclick="novaObra()" class="bg-blue-600 text-white text-sm px-3 py-2 rounded-lg">+ Nova obra</button>
       </div>
       <div id="listaObras" class="grid md:grid-cols-3 gap-4"></div>
+    </div>
+
+    
+    <div id="viewPrevisao" class="hidden">
+      <section class="bg-white rounded-2xl border p-5 mb-5">
+        <h2 class="font-semibold">Previsão de gasto real da obra</h2>
+        <p class="text-sm text-slate-500">Não usa lançamento. Pega o cadastro (qtde × unitário) e aplica os coeficientes da planilha: encargos e gasto real (custo ÷ 0,8085).</p>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 text-sm">
+          <div class="bg-slate-50 rounded-xl p-3"><p class="text-[11px] text-slate-400">TAREFA PREVISTA (CADASTRO)</p><p id="prevTarefa" class="text-xl font-bold">R$ 0,00</p></div>
+          <div class="bg-amber-50 rounded-xl p-3"><p class="text-[11px] text-amber-600">SALÁRIO C/ ENCARGOS (d)</p><p id="prevEnc" class="text-xl font-bold text-amber-800">R$ 0,00</p></div>
+          <div class="bg-blue-50 rounded-xl p-3"><p class="text-[11px] text-blue-500">CUSTO TOTAL (d + prêmio)</p><p id="prevCustoMes" class="text-xl font-bold text-blue-800">R$ 0,00</p></div>
+          <div class="bg-slate-800 text-white rounded-xl p-3"><p class="text-[11px] text-slate-300">GASTO REAL PREVISTO</p><p id="prevGastoMes" class="text-xl font-bold">R$ 0,00</p></div>
+        </div>
+      </section>
+      <div id="listaPrev" class="hidden"></div>
     </div>
 
     <div id="viewAdmin" class="hidden">
@@ -606,7 +622,7 @@ function aplicarAcesso(){
   document.getElementById("userChip").classList.remove("hidden");
   document.getElementById("btnSair").classList.remove("hidden");
   document.getElementById("userChip").textContent = sessao.role + " · " + (sessao.user||sessao.email);
-  var map = {home:"navHome", cadastro:"navCad", liberacao:"navLib", lancamento:"navLan", fechar:"navFec", saldo:"navSal"};
+  var map = {home:"navHome", cadastro:"navCad", liberacao:"navLib", lancamento:"navLan", fechar:"navFec", saldo:"navSal", previsao:"navPrev"};
   Object.keys(map).forEach(function(tela){
     var el = document.getElementById(map[tela]);
     if(!el) return;
@@ -707,25 +723,26 @@ function ir(v){
     else { alert("Seu perfil não acessa essa tela."); return; }
   }
   view = v;
-  ["home","cadastro","liberacao","lancamento","fechar","saldo"].forEach(function(name){
+  ["home","cadastro","liberacao","lancamento","fechar","saldo","previsao"].forEach(function(name){
     var el = document.getElementById("view"+name.charAt(0).toUpperCase()+name.slice(1));
     if(name==="fechar") el = document.getElementById("viewFechar");
     if(name==="lancamento") el = document.getElementById("viewLancamento");
     if(name==="liberacao") el = document.getElementById("viewLiberacao");
     if(name==="cadastro") el = document.getElementById("viewCadastro");
+    if(name==="previsao") el = document.getElementById("viewPrevisao");
     if(name==="home") el = document.getElementById("viewHome");
     if(name==="saldo") el = document.getElementById("viewSaldo");
     if(el) el.classList.toggle("hidden", v!==name);
   });
   var va = document.getElementById("viewAdmin");
   if(va) va.classList.toggle("hidden", v!=="admin");
-  var titles = {home:"Obras", cadastro:"Cadastro de obra", liberacao:"Liberação de fase", lancamento:"Lançar medição", fechar:"Resumo de medições", saldo:"Controle de saldo", admin:"Admin"};
+  var titles = {home:"Obras", cadastro:"Cadastro de obra", liberacao:"Liberação de fase", lancamento:"Lançar medição", fechar:"Resumo de medições", saldo:"Controle de saldo", previsao:"Previsão da obra", admin:"Admin"};
   document.getElementById("titulo").textContent = titles[v] || v;
-  var map = {home:"navHome", cadastro:"navCad", liberacao:"navLib", lancamento:"navLan", fechar:"navFec", saldo:"navSal", admin:"navAdm"};
+  var map = {home:"navHome", cadastro:"navCad", liberacao:"navLib", lancamento:"navLan", fechar:"navFec", saldo:"navSal", previsao:"navPrev", admin:"navAdm"};
   Object.keys(map).forEach(function(name){
     var el = document.getElementById(map[name]);
     if(!el) return;
-    var icons = {home:"🏗️ Obras", cadastro:"📋 Cadastro", liberacao:"🔓 Liberação", lancamento:"✍️ Lançar medição", fechar:"📊 Resumo", saldo:"📦 Controle de saldo", admin:"🛡️ Admin"};
+    var icons = {home:"🏗️ Obras", cadastro:"📋 Cadastro", liberacao:"🔓 Liberação", lancamento:"✍️ Lançar medição", fechar:"📊 Resumo", saldo:"📦 Controle de saldo", previsao:"📈 Previsão", admin:"🛡️ Admin"};
     el.className = "w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium " + (v===name ? "bg-blue-500 text-white" : "hover:bg-white/10 text-white");
     if(icons[name]) el.textContent = icons[name];
   });
@@ -1839,6 +1856,7 @@ function render(){
   else if(view==="liberacao") renderLiberacao();
   else if(view==="lancamento") renderLancamento();
   else if(view==="saldo") renderSaldo();
+  else if(view==="previsao") renderPrevisao();
   else renderFechar();
 }
 
@@ -2318,6 +2336,78 @@ function salvarDbNaObra(){
 }
 
 
+
+var COEF_GASTO = 0.8085;
+var HORA_MO = 12.74;
+var HORAS_DIA = 7.3333;
+function catFuncao(fn){
+  fn = canonFuncao(fn);
+  if(fn==="Carpinteiro") return "CARPINTEIROS";
+  if(fn==="Armador") return "ARMADORES";
+  if(fn==="Pedreiro") return "PEDREIROS";
+  if(fn==="Servente") return "SERVENTES";
+  if({Mestre:1,Encarregado:1,Apontador:1,"Técnico de Segurança":1,Sinaleiro:1}[fn]) return "ADMINISTRAÇÃO";
+  return "OUTROS";
+}
+function previstoCadastro(){
+  var out = {};
+  (db.filhos||[]).forEach(function(f){
+    var q = Number(f.qtd||0);
+    Object.keys(f.funcoes||{}).forEach(function(fn){
+      var vu = Number(f.funcoes[fn]||0);
+      if(!vu) return;
+      var cat = catFuncao(fn);
+      if(!out[cat]) out[cat] = 0;
+      out[cat] += q * vu;
+    });
+  });
+  return out;
+}
+function paramsPrevisao(){
+  store.cadastro = store.cadastro || {};
+  var id = store.obraId;
+  if(!id) return {};
+  if(!store.cadastro[id]) store.cadastro[id] = {pais:[], filhos:[]};
+  if(!store.cadastro[id].prevParams) store.cadastro[id].prevParams = {};
+  return store.cadastro[id].prevParams;
+}
+function setParamPrev(cat, campo, val){
+  var p = paramsPrevisao();
+  if(!p[cat]) p[cat] = {};
+  p[cat][campo] = Number(val)||0;
+  saveStore();
+  renderPrevisao();
+}
+function folhaPrevista(cat, tarefa){
+  tarefa = Number(tarefa||0);
+  var ehAdm = (cat==="ADMINISTRAÇÃO" || cat==="SERVENTES");
+  var trib = ehAdm ? tarefa : tarefa * 0.42;
+  var enc = trib * (ehAdm ? 2.1862 : 2.065);
+  var premio = Math.max(0, tarefa - trib);
+  var custo = enc + premio;
+  var gasto = custo / COEF_GASTO;
+  return {trib:trib, enc:enc, tarefa:tarefa, premio:premio, custo:custo, gasto:gasto};
+}
+function renderPrevisao(){
+  if(!store.obraId){
+    var z = "R$ 0,00";
+    ["prevTarefa","prevEnc","prevCustoMes","prevGastoMes"].forEach(function(id){
+      var el = document.getElementById(id); if(el) el.textContent = z;
+    });
+    return;
+  }
+  var cats = ["ADMINISTRAÇÃO","CARPINTEIROS","ARMADORES","PEDREIROS","SERVENTES"];
+  var prev = previstoCadastro();
+  var tot = {tarefa:0, enc:0, custo:0, gasto:0};
+  cats.forEach(function(c){
+    var fl = folhaPrevista(c, prev[c]||0);
+    tot.tarefa += fl.tarefa; tot.enc += fl.enc; tot.custo += fl.custo; tot.gasto += fl.gasto;
+  });
+  var elT = document.getElementById("prevTarefa"); if(elT) elT.textContent = money(tot.tarefa);
+  var elE = document.getElementById("prevEnc"); if(elE) elE.textContent = money(tot.enc);
+  var elC = document.getElementById("prevCustoMes"); if(elC) elC.textContent = money(tot.custo);
+  var elG = document.getElementById("prevGastoMes"); if(elG) elG.textContent = money(tot.gasto);
+}
 function renderSaldo(){
   var box = document.getElementById("listaSaldo");
   if(!box) return;
@@ -2332,21 +2422,49 @@ function renderSaldo(){
       var libs = f.liberacoes||[];
       if(!libs.length){
         var funs = ativas(f.funcoes).map(function(x){
-          return '<div class="flex justify-between text-xs py-1"><span>'+x[0]+'</span><span>0 / '+f.qtd+' '+f.un+' liberado</span></div>';
+          var vu = Number(x[1])||0;
+          var val = (Number(f.qtd)||0)*vu;
+          return '<div class="flex justify-between text-xs py-1"><span>'+x[0]+'</span><span>0 / '+f.qtd+' '+f.un+' · '+money(0)+' / '+money(val)+'</span></div>';
         }).join("");
-        return '<div class="border-2 border-slate-200 rounded-xl p-4 mb-3 bg-slate-50"><p class="font-semibold">'+f.nome+'</p><p class="text-[11px] text-slate-500 mb-2">Previsto '+f.qtd+' '+f.un+' · nada liberado</p>'+funs+'</div>';
+        var totPrev = ativas(f.funcoes).reduce(function(a,x){ return a + (Number(f.qtd)||0)*(Number(x[1])||0); },0);
+        return '<div class="border-2 border-slate-200 rounded-xl p-4 mb-3 bg-slate-50"><p class="font-semibold">'+f.nome+'</p><p class="text-[11px] text-slate-500 mb-2">Previsto '+f.qtd+' '+f.un+' · '+money(totPrev)+' · nada liberado</p>'+funs+'</div>';
       }
       return libs.map(function(l){
         var rows = saldosPorFuncao(f,l).map(function(s){
           var pct = s.teto ? Math.max(0, Math.min(100, Math.round(s.medido/s.teto*100))) : 0;
           var cor = pct>=100 ? "bg-emerald-600" : pct>0 ? "bg-blue-600" : "bg-slate-300";
-          return '<div class="mt-2"><div class="flex justify-between text-xs mb-1"><span class="font-medium">'+s.funcao+'</span><span>medido '+Number(s.medido).toLocaleString("pt-BR")+' · saldo '+Number(s.saldo).toLocaleString("pt-BR")+' / '+Number(s.teto).toLocaleString("pt-BR")+' '+f.un+'</span></div>'+
+          var vu = vuFuncao(f.funcoes, s.funcao);
+          return '<div class="mt-2"><div class="flex justify-between text-xs mb-1"><span class="font-medium">'+s.funcao+' · '+money(vu)+'/'+f.un+'</span><span>medido '+Number(s.medido).toLocaleString("pt-BR")+' '+f.un+' ('+money(s.medido*vu)+') · saldo '+Number(s.saldo).toLocaleString("pt-BR")+' / '+Number(s.teto).toLocaleString("pt-BR")+' '+f.un+' ('+money(s.saldo*vu)+' / '+money(s.teto*vu)+')</span></div>'+
             '<div class="h-2.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full '+cor+' rounded-full" style="width:'+(pct||1)+'%"></div></div></div>';
         }).join("");
-        return '<div class="border-2 border-slate-200 rounded-xl p-4 mb-3"><p class="font-semibold">'+f.nome+' · '+l.trecho+'</p><p class="text-[11px] text-slate-500 mb-1">Teto '+l.qtd+' '+f.un+' por função</p>'+rows+'</div>';
+        var totTeto = ativas(f.funcoes).reduce(function(a,x){ return a + Number(l.qtd||0)*(Number(x[1])||0); },0);
+        return '<div class="border-2 border-slate-200 rounded-xl p-4 mb-3"><p class="font-semibold">'+f.nome+' · '+l.trecho+'</p><p class="text-[11px] text-slate-500 mb-1">Teto '+l.qtd+' '+f.un+' por função · '+money(totTeto)+'</p>'+rows+'</div>';
       }).join("");
     }).join("");
-    return '<section class="bg-white rounded-2xl border-2 border-slate-300 overflow-hidden shadow-sm"><header class="px-5 py-4 bg-slate-800 text-white"><p class="text-[11px] uppercase text-slate-300">Serviço pai</p><h3 class="font-bold text-lg">'+p.nome+'</h3></header><div class="p-4">'+cards+'</div></section>';
+    var volTot = 0, volPago = 0, valTot = 0, valPago = 0, unPai = "";
+    filhos.forEach(function(f){
+      volTot += Number(f.qtd||0);
+      unPai = f.un || unPai;
+      var maxMed = 0;
+      ativas(f.funcoes).forEach(function(x){
+        valTot += Number(f.qtd||0) * Number(x[1]||0);
+        var medF = 0;
+        (f.liberacoes||[]).forEach(function(l){
+          medF += medidoNoTrecho(l.id, x[0], f);
+        });
+        valPago += medF * Number(x[1]||0);
+        if(medF > maxMed) maxMed = medF;
+      });
+      volPago += maxMed;
+    });
+    return '<section class="bg-white rounded-2xl border-2 border-slate-300 overflow-hidden shadow-sm"><header class="px-5 py-4 bg-slate-800 text-white flex flex-wrap justify-between items-center gap-3">'+
+      '<div><p class="text-[11px] uppercase text-slate-300">Serviço pai</p><h3 class="font-bold text-lg">'+p.nome+'</h3></div>'+
+      '<div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-right">'+
+        '<div class="bg-white/10 rounded-lg px-3 py-2"><p class="text-[10px] text-slate-300">Volume total</p><p class="font-semibold">'+Number(volTot).toLocaleString("pt-BR")+' '+unPai+'</p></div>'+
+        '<div class="bg-white/10 rounded-lg px-3 py-2"><p class="text-[10px] text-slate-300">Volume pago</p><p class="font-semibold">'+Number(volPago).toLocaleString("pt-BR")+' '+unPai+'</p></div>'+
+        '<div class="bg-white/10 rounded-lg px-3 py-2"><p class="text-[10px] text-slate-300">Valor total</p><p class="font-semibold">'+money(valTot)+'</p></div>'+
+        '<div class="bg-white/10 rounded-lg px-3 py-2"><p class="text-[10px] text-emerald-300">Valor pago</p><p class="font-semibold text-emerald-300">'+money(valPago)+'</p></div>'+
+      '</div></header><div class="p-4">'+cards+'</div></section>';
   }).join("") || '<div class="bg-white rounded-2xl border p-6 text-sm text-slate-500">Nada para mostrar.</div>';
 }
 
