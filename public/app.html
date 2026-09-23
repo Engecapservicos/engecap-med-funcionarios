@@ -976,8 +976,23 @@ function buscarFuncionario(){
 function mesmaFuncao(a,b){
   return normFun(a)===normFun(b);
 }
+function todasMedicoesObra(){
+  var id = store.obraId;
+  var mapa = {};
+  function add(m){
+    if(!m) return;
+    var k = String(m.id||"")+"|"+String(m.chapa||"")+"|"+String(m.libId||"")+"|"+String(m.qtd||"")+"|"+String(m.valor||"");
+    mapa[k] = m;
+  }
+  Object.keys(store.dados||{}).forEach(function(chave){
+    if(id && chave.indexOf(id+"|")!==0) return;
+    ((store.dados[chave]||{}).medicoes||[]).forEach(add);
+  });
+  (db.medicoes||[]).forEach(add);
+  return Object.keys(mapa).map(function(k){ return mapa[k]; });
+}
 function medidoNoTrecho(libId, funcao, filho){
-  return (db.medicoes||[]).filter(function(m){
+  return todasMedicoesObra().filter(function(m){
     if(m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra") return false;
     if(funcao && !mesmaFuncao(m.funcao, funcao)) return false;
     var porLib = String(m.libId)===String(libId);
