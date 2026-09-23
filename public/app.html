@@ -991,13 +991,26 @@ function todasMedicoesObra(){
   (db.medicoes||[]).forEach(add);
   return Object.keys(mapa).map(function(k){ return mapa[k]; });
 }
+function medidoNoFilho(filhoId, funcao){
+  return todasMedicoesObra().filter(function(m){
+    if(m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra") return false;
+    if(funcao && !mesmaFuncao(m.funcao, funcao)) return false;
+    if(String(m.filhoId||"")===String(filhoId)) return true;
+    var f = (db.filhos||[]).find(function(x){ return String(x.id)===String(filhoId); });
+    if(f && m.item && String(m.item).trim()===String(f.nome).trim()) return true;
+    return false;
+  }).reduce(function(a,m){ return a + Number(m.qtd||0); },0);
+}
 function medidoNoTrecho(libId, funcao, filho){
   return todasMedicoesObra().filter(function(m){
     if(m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra") return false;
     if(funcao && !mesmaFuncao(m.funcao, funcao)) return false;
     var porLib = String(m.libId)===String(libId);
-    var porTrecho = filho && m.trecho && (filho.liberacoes||[]).some(function(l){ return String(l.id)===String(libId) && String(m.trecho)===String(l.trecho); });
-    return porLib || porTrecho;
+    var porTrecho = filho && m.trecho && (filho.liberacoes||[]).some(function(l){
+      return String(m.trecho)===String(l.trecho);
+    });
+    var porFilho = filho && String(m.filhoId||"")===String(filho.id);
+    return porLib || porTrecho || porFilho;
   }).reduce(function(a,m){ return a + Number(m.qtd||0); },0);
 }
 
@@ -2434,27 +2447,21 @@ function renderSaldo(){
     var filhos = filhosDoPai(p.id);
     if(!filhos.length) return "";
     var cards = filhos.map(function(f){
-      var libs = f.liberacoes||[];
-      if(!libs.length){
-        var funs = ativas(f.funcoes).map(function(x){
-          var vu = Number(x[1])||0;
-          var val = (Number(f.qtd)||0)*vu;
-          return '<div class="flex justify-between text-xs py-1"><span>'+x[0]+'</span><span>0 / '+f.qtd+' '+f.un+' · '+money(0)+' / '+money(val)+'</span></div>';
-        }).join("");
-        var totPrev = ativas(f.funcoes).reduce(function(a,x){ return a + (Number(f.qtd)||0)*(Number(x[1])||0); },0);
-        return '<div class="border-2 border-slate-200 rounded-xl p-4 mb-3 bg-slate-50"><p class="font-semibold">'+f.nome+'</p><p class="text-[11px] text-slate-500 mb-2">Previsto '+f.qtd+' '+f.un+' · '+money(totPrev)+' · nada liberado</p>'+funs+'</div>';
-      }
-      return libs.map(function(l){
-        var rows = saldosPorFuncao(f,l).map(function(s){
-          var pct = s.teto ? Math.max(0, Math.min(100, Math.round(s.medido/s.teto*100))) : 0;
-          var cor = pct>=100 ? "bg-emerald-600" : pct>0 ? "bg-blue-600" : "bg-slate-300";
-          var vu = vuFuncao(f.funcoes, s.funcao);
-          return '<div class="mt-2"><div class="flex justify-between text-xs mb-1"><span class="font-medium">'+s.funcao+' · '+money(vu)+'/'+f.un+'</span><span>medido '+Number(s.medido).toLocaleString("pt-BR")+' '+f.un+' ('+money(s.medido*vu)+') · saldo '+Number(s.saldo).toLocaleString("pt-BR")+' / '+Number(s.teto).toLocaleString("pt-BR")+' '+f.un+' ('+money(s.saldo*vu)+' / '+money(s.teto*vu)+')</span></div>'+
-            '<div class="h-2.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full '+cor+' rounded-full" style="width:'+(pct||1)+'%"></div></div></div>';
-        }).join("");
-        var totTeto = ativas(f.funcoes).reduce(function(a,x){ return a + Number(l.qtd||0)*(Number(x[1])||0); },0);
-        return '<div class="border-2 border-slate-200 rounded-xl p-4 mb-3"><p class="font-semibold">'+f.nome+' · '+l.trecho+'</p><p class="text-[11px] text-slate-500 mb-1">Teto '+l.qtd+' '+f.un+' por função · '+money(totTeto)+'</p>'+rows+'</div>';
+      var totPrev = 0, totPago = 0, maxMed = 0;
+      var funs = ativas(f.funcoes).map(function(x){
+        var vu = Number(x[1])||0;
+        var teto = Number(f.qtd)||0;
+        var medido = medidoNoFilho(f.id, x[0]);
+        var saldo = teto - medido;
+        var pct = teto ? Math.max(0, Math.min(100, Math.round(medido/teto*100))) : 0;
+        var cor = pct>=100 ? "bg-emerald-600" : pct>0 ? "bg-blue-600" : "bg-slate-300";
+        totPrev += teto*vu;
+        totPago += medido*vu;
+        if(medido>maxMed) maxMed = medido;
+        return '<div class="mt-2"><div class="flex justify-between text-xs mb-1"><span class="font-medium">'+x[0]+'</span><span>pago '+Number(medido).toLocaleString("pt-BR")+' / '+teto+' '+f.un+' · '+money(medido*vu)+' / '+money(teto*vu)+'</span></div>'+
+          '<div class="h-2.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full '+cor+' rounded-full" style="width:'+(pct||1)+'%"></div></div></div>';
       }).join("");
+      return '<div class="border-2 border-slate-200 rounded-xl p-4 mb-3"><p class="font-semibold">'+f.nome+'</p><p class="text-[11px] text-slate-500 mb-2">Previsto '+f.qtd+' '+f.un+' · '+money(totPrev)+' · pago '+Number(maxMed).toLocaleString("pt-BR")+' '+f.un+' · '+money(totPago)+'</p>'+funs+'</div>';
     }).join("");
     var volTot = 0, volPago = 0, valTot = 0, valPago = 0, unPai = "";
     filhos.forEach(function(f){
@@ -2463,10 +2470,7 @@ function renderSaldo(){
       var maxMed = 0;
       ativas(f.funcoes).forEach(function(x){
         valTot += Number(f.qtd||0) * Number(x[1]||0);
-        var medF = 0;
-        (f.liberacoes||[]).forEach(function(l){
-          medF += medidoNoTrecho(l.id, x[0], f);
-        });
+        var medF = medidoNoFilho(f.id, x[0]);
         valPago += medF * Number(x[1]||0);
         if(medF > maxMed) maxMed = medF;
       });
