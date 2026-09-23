@@ -716,6 +716,43 @@ function ativas(f){ return Object.entries(f||{}).filter(function(x){ return x[1]
 function tot(f,q){ return ativas(f).reduce(function(a,x){ return a + q*x[1]; },0); }
 function filhosDoPai(id){ return db.filhos.filter(function(f){ return f.paiId === (id||paiSel); }); }
 function somaLib(f){ return (f.liberacoes||[]).reduce(function(a,l){ return a + Number(l.qtd||0); },0); }
+function libsTodosMeses(filhoId){
+  var acc = [], seen = {};
+  function add(l, periodo){
+    if(!l || l.id==null) return;
+    var k = String(l.id);
+    if(seen[k]) return;
+    seen[k] = true;
+    var copy = {};
+    Object.keys(l).forEach(function(x){ copy[x]=l[x]; });
+    copy.periodo = l.periodo || periodo;
+    acc.push(copy);
+  }
+  Object.keys(store.dados||{}).forEach(function(chave){
+    if(store.obraId && chave.indexOf(store.obraId+"|")!==0) return;
+    var per = chave.split("|")[1];
+    var pack = ((store.dados[chave]||{}).libs)||{};
+    var arr = pack[String(filhoId)] || pack[filhoId];
+    if(Array.isArray(arr)) arr.forEach(function(l){ add(l, per); });
+  });
+  var f = (db.filhos||[]).find(function(x){ return String(x.id)===String(filhoId); });
+  (f && f.liberacoes||[]).forEach(function(l){ add(l, store.periodo); });
+  return acc;
+}
+function somaLibAcum(f){
+  return libsTodosMeses(f.id).reduce(function(a,l){ return a + Number(l.qtd||0); },0);
+}
+function pagoFilhoMax(f){
+  var maxMed = 0;
+  ativas(f.funcoes).forEach(function(x){
+    var m = medidoNoFilho(f.id, x[0]);
+    if(m>maxMed) maxMed = m;
+  });
+  return maxMed;
+}
+function consumidoFilho(f){
+  return Math.max(somaLibAcum(f), pagoFilhoMax(f));
+}
 
 function ir(v){
   if(sessao && !pode(v)){
@@ -885,7 +922,7 @@ function liberar(id){
     if(!q || q<=0){
       q = parseFloat(prompt("Quantidade a liberar:"));
     }
-    var saldo = Number(f.qtd||0) - somaLib(f);
+    var saldo = Number(f.qtd||0) - consumidoFilho(f);
     if(!q || q<=0) return alert("Informa a quantidade");
     if(!trecho) return alert("Identifica o trecho. Ex: Trecho B");
     if(q>saldo+0.0001) return alert("Estoura o saldo ("+saldo+" "+(f.un||"")+")");
@@ -914,9 +951,9 @@ function editarLib(filhoId, libId){
   var novaQtd = prompt("Quantidade:", l.qtd);
   if(novaQtd===null) return;
   var q = parseFloat(novaQtd);
-  var outros = somaLib(f) - l.qtd;
+  var outros = consumidoFilho(f) - Number(l.qtd||0);
   if(!q || q<=0 || !novoTrecho.trim()) return alert("Dados inválidos");
-  if(outros + q > f.qtd) return alert("Estoura o previsto");
+  if(outros + q > f.qtd) return alert("Estoura o previsto (já pago/liberado em outros meses)");
   l.trecho = novoTrecho.trim();
   l.qtd = q;
   save(); render();
@@ -1322,7 +1359,7 @@ function renderLiberacao(){
   document.getElementById("listaLib").innerHTML = db.pais.map(function(p){
     var lista = filhosDoPai(p.id).slice().sort(function(a,b){ return rankAndar(b.nome)-rankAndar(a.nome); });
     var andares = lista.map(function(f){
-      var liberado = somaLib(f);
+      var liberado = consumidoFilho(f);
       var pct = f.qtd ? Math.min(100, Math.round(liberado/f.qtd*100)) : 0;
       return { id:f.id, nome:f.nome, pct:pct, liberado:liberado, qtd:f.qtd, un:f.un };
     });
@@ -1332,17 +1369,23 @@ function renderLiberacao(){
     var filhosHtml = !lista.length
       ? '<p class="text-sm text-slate-400 p-4">Sem filhos neste pai.</p>'
       : lista.map(function(f){
-          var liberado = somaLib(f);
+          var liberado = consumidoFilho(f);
+          var pago = pagoFilhoMax(f);
           var saldo = f.qtd - liberado;
           var pct = f.qtd ? Math.round(liberado/f.qtd*100) : 0;
-          var linhas = (f.liberacoes||[]).map(function(l){
-            return '<div class="flex items-center justify-between text-xs bg-slate-50 border rounded-lg px-3 py-2 mt-1"><span><b>'+l.trecho+"</b> · "+l.qtd+" "+f.un+'</span><span><button onclick="editarLib('+f.id+","+l.id+')" class="text-blue-600 mr-2">editar</button><button onclick="excluirLib('+f.id+","+l.id+')" class="text-slate-400">excluir</button></span></div>';
+          var linhas = libsTodosMeses(f.id).map(function(l){
+            var desteMes = String(l.periodo||store.periodo)===String(store.periodo);
+            var tag = l.periodo ? (" · "+l.periodo) : "";
+            var acoes = desteMes
+              ? '<span><button onclick="editarLib('+f.id+","+l.id+')" class="text-blue-600 mr-2">editar</button><button onclick="excluirLib('+f.id+","+l.id+')" class="text-slate-400">excluir</button></span>'
+              : '<span class="text-slate-400">mês anterior</span>';
+            return '<div class="flex items-center justify-between text-xs bg-slate-50 border rounded-lg px-3 py-2 mt-1"><span><b>'+l.trecho+"</b> · "+l.qtd+" "+f.un+tag+'</span>'+acoes+'</div>';
           }).join("");
           var resumo = '<div class="px-4 py-3">'+
             '<div class="flex items-center justify-between gap-3 flex-wrap">'+
               '<div class="min-w-0 flex-1">'+
                 '<p class="font-semibold text-slate-800">'+f.nome+
-                ' <span class="font-normal text-slate-500 text-xs ml-1">Previsto '+f.qtd.toLocaleString("pt-BR")+' '+f.un+' · Liberado '+liberado.toLocaleString("pt-BR")+' · Saldo '+saldo.toLocaleString("pt-BR")+' '+f.un+'</span></p>'+
+                ' <span class="font-normal text-slate-500 text-xs ml-1">Previsto '+f.qtd.toLocaleString("pt-BR")+' '+f.un+' · Liberado/pago '+liberado.toLocaleString("pt-BR")+' · Pago '+pago.toLocaleString("pt-BR")+' · Saldo '+saldo.toLocaleString("pt-BR")+' '+f.un+'</span></p>'+
               '</div>'+
               (aberto
                 ? '<span class="text-[11px] text-slate-400 shrink-0">formulário aberto</span>'
