@@ -148,6 +148,13 @@
             <button type="button" onclick="vincularAdmObra()" class="bg-blue-600 text-white text-sm px-3 py-2 rounded-lg">Vincular</button>
           </div>
           <div id="listaAdmsObra" class="flex flex-wrap gap-2 text-sm"></div>
+          <p class="text-sm font-medium mb-1 mt-4">Engenheiros desta obra</p>
+          <p class="text-[11px] text-slate-500 mb-2">Quem for vinculado vê e edita esta obra. Pode ser mais de um.</p>
+          <div class="flex gap-2 mb-2">
+            <input id="obraEngUser" placeholder="usuário do engenheiro (ex: carlos)" class="border rounded-lg px-3 py-2 text-sm flex-1" />
+            <button type="button" onclick="vincularEngObra()" class="bg-slate-800 text-white text-sm px-3 py-2 rounded-lg">Vincular</button>
+          </div>
+          <div id="listaEngsObra" class="flex flex-wrap gap-2 text-sm"></div>
         </div>
       </section>
       <div class="grid md:grid-cols-12 gap-5">
@@ -523,12 +530,12 @@ async function cloudPullStore(){
   var obras = await sb.from("mo_obras").select("*").eq("active", true);
   if(obras.error) throw new Error(obras.error.message);
   store.obras = (obras.data||[]).map(function(o){
-    return {id:o.id, codigo:o.codigo||"", nome:o.nome, cliente:o.cliente||"", tipo:o.tipo||"Estrutura", adms:o.adms||[]};
+    return {id:o.id, codigo:o.codigo||"", nome:o.nome, cliente:o.cliente||"", tipo:o.tipo||"Estrutura", adms:o.adms||[], engs:o.engs||[]};
   });
   var cads = await sb.from("mo_cadastro").select("*");
   store.cadastro = {};
   (cads.data||[]).forEach(function(c){
-    store.cadastro[c.obra_id] = { pais:c.pais||[], filhos:c.filhos||[], adms:c.adms||[] };
+    store.cadastro[c.obra_id] = { pais:c.pais||[], filhos:c.filhos||[], adms:c.adms||[], engs:c.engs||[] };
   });
   var pers = await sb.from("mo_periodo").select("*");
   store.dados = {};
@@ -543,6 +550,8 @@ async function cloudPullStore(){
   (store.obras||[]).forEach(function(o){
     if((!o.adms || !o.adms.length) && store.cadastro[o.id] && store.cadastro[o.id].adms)
       o.adms = store.cadastro[o.id].adms;
+    if((!o.engs || !o.engs.length) && store.cadastro[o.id] && store.cadastro[o.id].engs)
+      o.engs = store.cadastro[o.id].engs;
   });
   localStorage.setItem(STORE_KEY, JSON.stringify(store));
 }
@@ -562,7 +571,7 @@ async function cloudPushStore(){
   for(var i=0;i<obras.length;i++){
     var o = obras[i];
     var r = await sb.from("mo_obras").upsert({
-      id:o.id, codigo:o.codigo||"", nome:o.nome, cliente:o.cliente||"", tipo:o.tipo||"Estrutura", active:true, adms:o.adms||[]
+      id:o.id, codigo:o.codigo||"", nome:o.nome, cliente:o.cliente||"", tipo:o.tipo||"Estrutura", active:true, adms:o.adms||[], engs:o.engs||[]
     });
     if(r.error) console.warn(r.error);
   }
@@ -572,7 +581,7 @@ async function cloudPushStore(){
     var id = ids[j];
     var cad = store.cadastro[id];
     var r2 = await sb.from("mo_cadastro").upsert({
-      obra_id:id, pais:cad.pais||[], filhos:cad.filhos||[], adms:cad.adms||[]
+      obra_id:id, pais:cad.pais||[], filhos:cad.filhos||[], adms:cad.adms||[], engs:cad.engs||[]
     });
     if(r2.error) console.warn(r2.error);
   }
@@ -1206,10 +1215,60 @@ function obraTemAdm(o, user){
   user = String(user||"").toLowerCase();
   return (o.adms||[]).some(function(a){ return String(a).toLowerCase()===user; });
 }
+function obraTemEng(o, user){
+  user = String(user||"").toLowerCase();
+  return (o.engs||[]).some(function(a){ return String(a).toLowerCase()===user; });
+}
 function obrasDoUsuario(){
   var obras = store.obras||[];
-  if(!sessao || sessao.role==="admin" || sessao.role==="engenheiro") return obras;
+  if(!sessao || sessao.role==="admin") return obras;
+  if(sessao.role==="engenheiro"){
+    var u = userAtual();
+    var filtradas = obras.filter(function(o){
+      if(!(o.engs||[]).length) return true;
+      return obraTemEng(o, u);
+    });
+    return filtradas;
+  }
   return obras.filter(function(o){ return obraTemAdm(o, userAtual()); });
+}
+
+function renderEngsObra(){
+  var box = document.getElementById("listaEngsObra");
+  if(!box) return;
+  var o = (store.obras||[]).find(function(x){ return x.id===store.obraId; });
+  var engs = (o && o.engs) ? o.engs : [];
+  box.innerHTML = engs.length ? engs.map(function(a){
+    var key = String(a).replace(/[^a-zA-Z0-9_-]/g,"");
+    return '<span class="inline-flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-full px-3 py-1">'+a+' <button type="button" class="eng-x text-slate-400 hover:text-red-600" data-eng="'+key+'">x</button></span>';
+  }).join("") : '<span class="text-xs text-slate-400">Nenhum engenheiro extra. Com a lista vazia, todo engenheiro vê a obra.</span>';
+  box.querySelectorAll(".eng-x").forEach(function(btn){
+    btn.onclick = function(){ desvincularEngObra(btn.getAttribute("data-eng")); };
+  });
+}
+function vincularEngObra(){
+  if(sessao && sessao.role==="apontador") return alert("Só engenheiro/admin vincula");
+  var o = (store.obras||[]).find(function(x){ return x.id===store.obraId; });
+  if(!o) return alert("Abre uma obra");
+  var u = (document.getElementById("obraEngUser").value||"").trim().toLowerCase();
+  if(!u) return alert("Usuário do engenheiro");
+  if(u.indexOf("@")>=0) u = u.split("@")[0];
+  o.engs = o.engs || [];
+  if(obraTemEng(o,u)) return alert("Já vinculado");
+  o.engs.push(u);
+  if(store.cadastro && store.cadastro[o.id]) store.cadastro[o.id].engs = o.engs;
+  document.getElementById("obraEngUser").value = "";
+  saveStore();
+  renderEngsObra();
+}
+function desvincularEngObra(u){
+  if(sessao && sessao.role==="apontador") return;
+  var o = (store.obras||[]).find(function(x){ return x.id===store.obraId; });
+  if(!o) return;
+  o.engs = (o.engs||[]).filter(function(a){ return String(a).toLowerCase()!==String(u).toLowerCase(); });
+  if(store.cadastro && store.cadastro[o.id]) store.cadastro[o.id].engs = o.engs;
+  saveStore();
+  renderEngsObra();
 }
 function renderAdmsObra(){
   var box = document.getElementById("listaAdmsObra");
@@ -1239,6 +1298,7 @@ function vincularAdmObra(){
   document.getElementById("obraAdmUser").value = "";
   saveStore();
   renderAdmsObra();
+  renderEngsObra();
 }
 function desvincularAdmObra(u){
   if(sessao && sessao.role==="apontador") return;
@@ -1248,6 +1308,7 @@ function desvincularAdmObra(u){
   if(store.cadastro && store.cadastro[o.id]) store.cadastro[o.id].adms = o.adms;
   saveStore();
   renderAdmsObra();
+  renderEngsObra();
 }
 function preencherDadosObra(){
   var o = (store.obras||[]).find(function(x){ return x.id===store.obraId; });
@@ -1258,6 +1319,7 @@ function preencherDadosObra(){
   document.getElementById("obraCliente").value = o ? (o.cliente||"") : "";
   document.getElementById("obraTipo").value = o && o.tipo ? o.tipo : "Estrutura";
   renderAdmsObra();
+  renderEngsObra();
 }
 function salvarDadosObra(){
   if(!store.obraId) return alert("Abre uma obra primeiro");
@@ -1268,8 +1330,12 @@ function salvarDadosObra(){
   o.cliente = (document.getElementById("obraCliente").value||"").trim();
   o.tipo = document.getElementById("obraTipo").value;
   o.adms = o.adms || [];
+  o.engs = o.engs || [];
   if(!o.nome) return alert("Nome da obra");
-  if(store.cadastro && store.cadastro[o.id]) store.cadastro[o.id].adms = o.adms;
+  if(store.cadastro && store.cadastro[o.id]){
+    store.cadastro[o.id].adms = o.adms;
+    store.cadastro[o.id].engs = o.engs;
+  }
   saveStore();
   if(typeof addLog==="function") addLog("Atualizou obra "+o.codigo+" "+o.nome);
   renderHeader();
@@ -2315,7 +2381,8 @@ function novaObra(){
   var nome = prompt("Nome da obra");
   if(!nome) return;
   var cliente = prompt("Cliente")||"";
-  store.obras.push({id:"o"+Date.now(), codigo:codigo.trim(), nome:nome.trim(), cliente:cliente.trim()});
+  var eu = userAtual();
+  store.obras.push({id:"o"+Date.now(), codigo:codigo.trim(), nome:nome.trim(), cliente:cliente.trim(), adms:[], engs: eu ? [eu] : []});
   saveStore();
   renderHome();
 }
