@@ -186,6 +186,7 @@
               <div><label class="text-xs text-slate-500">Carpinteiro R$</label><input id="vuCarp" type="number" step="0.01" class="w-full border rounded-lg px-3 py-2 text-sm" /></div>
               <div><label class="text-xs text-slate-500">Armador R$</label><input id="vuArm" type="number" step="0.01" class="w-full border rounded-lg px-3 py-2 text-sm" /></div>
               <div><label class="text-xs text-slate-500">Pedreiro R$</label><input id="vuPed" type="number" step="0.01" class="w-full border rounded-lg px-3 py-2 text-sm" /></div>
+              <div><label class="text-xs text-slate-500">Soldador R$</label><input id="vuSold" type="number" step="0.01" class="w-full border rounded-lg px-3 py-2 text-sm" /></div>
               <div><label class="text-xs text-slate-500">Servente R$</label><input id="vuServ" type="number" step="0.01" class="w-full border rounded-lg px-3 py-2 text-sm" /></div>
               <div class="md:col-span-2 text-[11px] uppercase tracking-wide text-slate-400 pt-2">ADM</div>
               <div><label class="text-xs text-slate-500">Mestre R$</label><input id="vuMestre" type="number" step="0.01" class="w-full border rounded-lg px-3 py-2 text-sm" /></div>
@@ -694,8 +695,10 @@ function canonFuncao(s){
   if(/carp|forma/.test(n)) return "Carpinteiro";
   if(/armad|ferro|aco/.test(n)) return "Armador";
   if(/pedr|alven|reboco/.test(n)) return "Pedreiro";
+  if(/soldad/.test(n)) return "Soldador";
   if(/sinaleiro|sinal/.test(n)) return "Sinaleiro";
   if(/tecnico.*segur|seguranca|tecseg/.test(n)) return "Técnico de Segurança";
+  if(/auxiliaradministrativo|administrativo|auxadm/.test(n)) return "Apontador";
   if(/apontador/.test(n)) return "Apontador";
   if(/encarreg/.test(n)) return "Encarregado";
   if(/mestre/.test(n)) return "Mestre";
@@ -830,6 +833,7 @@ function lerFuncoes(){
     Carpinteiro: Number(document.getElementById("vuCarp").value)||0,
     Armador: Number(document.getElementById("vuArm").value)||0,
     Pedreiro: Number(document.getElementById("vuPed").value)||0,
+    Soldador: Number(document.getElementById("vuSold").value)||0,
     Servente: Number(document.getElementById("vuServ").value)||0,
     Mestre: Number(document.getElementById("vuMestre").value)||0,
     Encarregado: Number(document.getElementById("vuEnc").value)||0,
@@ -843,6 +847,8 @@ function preencherFuncoes(f){
   document.getElementById("vuCarp").value = f.Carpinteiro || "";
   document.getElementById("vuArm").value = f.Armador || "";
   document.getElementById("vuPed").value = f.Pedreiro || "";
+  var vs = document.getElementById("vuSold");
+  if(vs) vs.value = f.Soldador || "";
   document.getElementById("vuServ").value = f.Servente || "";
   var mestre = document.getElementById("vuMestre");
   if(mestre){
@@ -1032,22 +1038,43 @@ function medidoNoFilho(filhoId, funcao){
   return todasMedicoesObra().filter(function(m){
     if(m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra") return false;
     if(funcao && !mesmaFuncao(m.funcao, funcao)) return false;
-    if(String(m.filhoId||"")===String(filhoId)) return true;
     var f = (db.filhos||[]).find(function(x){ return String(x.id)===String(filhoId); });
+    if(f && !mesmoTipoHora(f, m)) return false;
+    if(String(m.filhoId||"")===String(filhoId)) return true;
     if(f && m.item && String(m.item).trim()===String(f.nome).trim()) return true;
     return false;
   }).reduce(function(a,m){ return a + Number(m.qtd||0); },0);
 }
+function ehHoraExtra(txt){
+  var n = normFun(txt);
+  return /horaextra|hextra|hextras/.test(n);
+}
+function ehHoraNormal(txt){
+  var n = normFun(txt);
+  return /horanormal|horasnormais|horanormais/.test(n);
+}
+function mesmoTipoHora(filho, m){
+  var lado = ((filho&&filho.nome)||"")+" "+((filho&&filho.un)||"");
+  var med = ((m&&m.item)||"")+" "+((m&&m.pai)||"")+" "+((m&&m.un)||"");
+  if(ehHoraExtra(lado) && ehHoraNormal(med)) return false;
+  if(ehHoraNormal(lado) && ehHoraExtra(med)) return false;
+  if(ehHoraExtra(lado) && !ehHoraExtra(med) && ehHoraNormal(med)) return false;
+  return true;
+}
 function medidoNoTrecho(libId, funcao, filho){
+  var lib = null;
+  if(filho){
+    var pack = (filho.liberacoes||[]).slice();
+    if(typeof libsTodosMeses==="function") pack = pack.concat(libsTodosMeses(filho.id)||[]);
+    lib = pack.find(function(l){ return String(l.id)===String(libId); });
+  }
   return todasMedicoesObra().filter(function(m){
-    if(m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra") return false;
+    if(m.tipo==="integracao" || m.tipo==="vtSabado") return false;
     if(funcao && !mesmaFuncao(m.funcao, funcao)) return false;
-    var porLib = String(m.libId)===String(libId);
-    var porTrecho = filho && m.trecho && (filho.liberacoes||[]).some(function(l){
-      return String(m.trecho)===String(l.trecho);
-    });
-    var porFilho = filho && String(m.filhoId||"")===String(filho.id);
-    return porLib || porTrecho || porFilho;
+    if(filho && !mesmoTipoHora(filho, m)) return false;
+    if(String(m.libId)===String(libId)) return true;
+    if(filho && String(m.filhoId||"")===String(filho.id) && lib && m.trecho && String(m.trecho)===String(lib.trecho)) return true;
+    return false;
   }).reduce(function(a,m){ return a + Number(m.qtd||0); },0);
 }
 
@@ -1720,7 +1747,7 @@ function calcFolha(totalTarefa, funcao, dias){
     trib = totalTarefa;
     enc = trib * 2.1862;
     regra = fn==="Servente" ? "servente" : "adm";
-  } else if(fn==="Carpinteiro" || fn==="Armador" || fn==="Pedreiro"){
+  } else if(fn==="Carpinteiro" || fn==="Armador" || fn==="Pedreiro" || fn==="Soldador"){
     trib = dias * 7.3333 * 12.74;
     enc = trib * 2.065;
     regra = fn.toLowerCase();
@@ -2416,6 +2443,7 @@ function catFuncao(fn){
   if(fn==="Carpinteiro") return "CARPINTEIROS";
   if(fn==="Armador") return "ARMADORES";
   if(fn==="Pedreiro") return "PEDREIROS";
+  if(fn==="Soldador") return "SOLDADORES";
   if(fn==="Servente") return "SERVENTES";
   if({Mestre:1,Encarregado:1,Apontador:1,"Técnico de Segurança":1,Sinaleiro:1}[fn]) return "ADMINISTRAÇÃO";
   return "OUTROS";
@@ -2467,7 +2495,7 @@ function renderPrevisao(){
     });
     return;
   }
-  var cats = ["ADMINISTRAÇÃO","CARPINTEIROS","ARMADORES","PEDREIROS","SERVENTES"];
+  var cats = ["ADMINISTRAÇÃO","CARPINTEIROS","ARMADORES","PEDREIROS","SOLDADORES","SERVENTES"];
   var prev = previstoCadastro();
   var tot = {tarefa:0, enc:0, custo:0, gasto:0};
   cats.forEach(function(c){
