@@ -577,6 +577,38 @@ async function cloudPullStore(){
   });
   localStorage.setItem(STORE_KEY, JSON.stringify(store));
 }
+
+var _pollTimer = null;
+var _lastMedCount = -1;
+async function pollPeriodoAtual(){
+  if(!sbOn() || !store.obraId || !store.periodo) return;
+  try{
+    var r = await sb.from("mo_periodo").select("medicoes,libs,aprovacoes").eq("obra_id", store.obraId).eq("periodo", store.periodo).maybeSingle();
+    if(r.error || !r.data) return;
+    var key = store.obraId+"|"+store.periodo;
+    var local = (store.dados||{})[key] || { medicoes:[] };
+    var remoto = r.data.medicoes || [];
+    var merged = mergeMedicoes(local.medicoes, remoto);
+    var mudou = merged.length !== (local.medicoes||[]).length || JSON.stringify(merged).length !== JSON.stringify(local.medicoes||[]).length;
+    if(mudou){
+      store.dados = store.dados || {};
+      store.dados[key] = store.dados[key] || { medicoes:[], libs:{} };
+      store.dados[key].medicoes = merged;
+      if(r.data.libs) store.dados[key].libs = r.data.libs;
+      if(r.data.aprovacoes) store.dados[key].aprovacoes = r.data.aprovacoes;
+      localStorage.setItem(STORE_KEY, JSON.stringify(store));
+      carregarDbDaObra();
+      if(typeof render === "function") render();
+      var st = document.getElementById("nuvemStatus");
+      if(st) st.textContent = "Atualizado · " + new Date().toLocaleTimeString("pt-BR");
+    }
+  }catch(e){ console.warn(e); }
+}
+function iniciarPoll(){
+  if(_pollTimer) clearInterval(_pollTimer);
+  _pollTimer = setInterval(pollPeriodoAtual, 15000);
+  setTimeout(pollPeriodoAtual, 3000);
+}
 async function cloudDeleteObra(id){
   if(!sbOn() || !id) return;
   await sb.from("mo_periodo").delete().eq("obra_id", id);
@@ -2501,7 +2533,7 @@ function abrirObra(id){
     salvarDbNaObra();
     cloudPushStore().then(function(){
       return cloudPullStore();
-    }).then(segue).catch(function(){ segue(); });
+    }).then(function(){ segue(); iniciarPoll(); }).catch(function(){ segue(); iniciarPoll(); });
   } else segue();
 }
 
@@ -2738,8 +2770,10 @@ if(sessao){
     cloudPullStore().then(function(){
       if(store.obraId) carregarDbDaObra();
       ir("home");
+      iniciarPoll();
     }).catch(function(){
       ir("home");
+      iniciarPoll();
     });
   } else {
     ir("home");
