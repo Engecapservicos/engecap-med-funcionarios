@@ -1231,6 +1231,7 @@ function lancar(libId){
   if(!vu) return alert("Essa função não recebe neste item");
   db.medicoes.push({
     id: Date.now(),
+    obraId: store.obraId,
     libId: libId,
     filhoId: t.filho.id,
     funcionario: funcionarioAtual.nome,
@@ -1630,6 +1631,18 @@ var form = aberto ? (
   }).join("") || '<p class="text-slate-500">Cadastre serviços primeiro.</p>';
 }
 
+
+function medPertenceObra(m){
+  if(!m) return false;
+  if(m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra") return true;
+  var filhos = db.filhos || [];
+  if(m.filhoId && filhos.some(function(f){ return String(f.id)===String(m.filhoId); })) return true;
+  if(m.item && filhos.some(function(f){ return String(f.nome).trim()===String(m.item).trim(); })) return true;
+  return false;
+}
+function medicoesDaObra(){
+  return (db.medicoes||[]).filter(medPertenceObra);
+}
 function renderLancamento(){
   mostrarPeriodoServente();
 
@@ -1672,7 +1685,7 @@ function renderLancamento(){
         '</div>';
     }).join("");
   }
-  var meds = db.medicoes||[];
+  var meds = medicoesDaObra();
   if(!meds.length){
     document.getElementById("listaMed").innerHTML = "Nenhuma ainda.";
     return;
@@ -2001,7 +2014,7 @@ function renderFechar(){
   var busca = (window._buscaChapa || "").trim();
   var meds = busca ? medicoesPeriodoTodasObras().filter(function(m){
     return String(m.chapa||"") === busca || String(m.chapa||"").indexOf(busca) >= 0;
-  }) : (db.medicoes || []).map(function(m){
+  }) : medicoesDaObra().map(function(m){
     var copy = JSON.parse(JSON.stringify(m));
     copy.obraNome = nomeObra(store.obraId);
     return copy;
@@ -2634,7 +2647,12 @@ function salvarDbNaObra(){
   var libs = {};
   (db.filhos||[]).forEach(function(f){ libs[String(f.id)] = f.liberacoes||[]; });
   libs.__aprovacoes = db.aprovacoes||{};
-  store.dados[chaveDados()] = { medicoes: db.medicoes||[], libs: libs, aprovacoes: db.aprovacoes||{} };
+  var medsLimpos = (db.medicoes||[]).filter(function(m){
+    if(m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra") return true;
+    if(m.obraId && m.obraId !== store.obraId) return false;
+    return medPertenceObra(m);
+  });
+  store.dados[chaveDados()] = { medicoes: medsLimpos, libs: libs, aprovacoes: db.aprovacoes||{} };
   saveStore();
 }
 
