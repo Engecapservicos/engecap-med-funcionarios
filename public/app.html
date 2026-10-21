@@ -527,8 +527,20 @@ async function cloudSaveFuncionarios(rows){
   var r = await sb.from("funcionarios").upsert(payload, { onConflict: "chapa" });
   if(r.error) throw new Error(r.error.message);
 }
+function mergeMedicoes(local, remoto){
+  var mapa = {};
+  function add(m){
+    if(!m) return;
+    var k = String(m.id||"") + "|" + String(m.chapa||"") + "|" + String(m.libId||"") + "|" + String(m.qtd||"");
+    if(!mapa[k]) mapa[k] = m;
+  }
+  (remoto||[]).forEach(add);
+  (local||[]).forEach(add);
+  return Object.keys(mapa).map(function(k){ return mapa[k]; });
+}
 async function cloudPullStore(){
   if(!sbOn()) return;
+  var localDados = JSON.parse(JSON.stringify(store.dados||{}));
   var obras = await sb.from("mo_obras").select("*").eq("active", true);
   if(obras.error) throw new Error(obras.error.message);
   store.obras = (obras.data||[]).map(function(o){
@@ -543,11 +555,19 @@ async function cloudPullStore(){
   store.dados = {};
   (pers.data||[]).forEach(function(c){
     var libs = c.libs||{};
-    store.dados[c.obra_id+"|"+c.periodo] = {
-      medicoes:c.medicoes||[],
-      libs:libs,
-      aprovacoes: c.aprovacoes || libs.__aprovacoes || {}
+    var key = c.obra_id+"|"+c.periodo;
+    var local = localDados[key] || {};
+    var meds = mergeMedicoes(local.medicoes, c.medicoes||[]);
+    store.dados[key] = {
+      medicoes: meds,
+      libs: libs,
+      aprovacoes: c.aprovacoes || libs.__aprovacoes || local.aprovacoes || {}
     };
+  });
+  Object.keys(localDados).forEach(function(key){
+    if(!store.dados[key]){
+      store.dados[key] = localDados[key];
+    }
   });
   (store.obras||[]).forEach(function(o){
     if((!o.adms || !o.adms.length) && store.cadastro[o.id] && store.cadastro[o.id].adms)
@@ -2478,7 +2498,10 @@ function abrirObra(id){
     ir(sessao && sessao.role==="apontador"?"lancamento":"cadastro");
   }
   if(sbOn()){
-    cloudPullStore().then(segue).catch(function(){ segue(); });
+    salvarDbNaObra();
+    cloudPushStore().then(function(){
+      return cloudPullStore();
+    }).then(segue).catch(function(){ segue(); });
   } else segue();
 }
 
