@@ -1715,7 +1715,7 @@ function medPertenceObra(m){
   return itemExisteNaObra(m);
 }
 function medicoesDaObra(){
-  return (db.medicoes||[]).filter(medPertenceObra);
+  return db.medicoes||[];
 }
 function renderLancamento(){
   mostrarPeriodoServente();
@@ -1760,10 +1760,6 @@ function renderLancamento(){
     }).join("");
   }
   var meds = db.medicoes||[];
-  if(sessao && sessao.role==="apontador"){
-    var eu = userAtual();
-    meds = meds.filter(function(m){ return !m.apontador || m.apontador===eu; });
-  }
   if(!meds.length){
     document.getElementById("listaMed").innerHTML = "Nenhuma ainda.";
     return;
