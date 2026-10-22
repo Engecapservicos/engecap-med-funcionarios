@@ -2538,7 +2538,10 @@ function novaObra(){
   if(!nome) return;
   var cliente = prompt("Cliente")||"";
   var eu = userAtual();
-  store.obras.push({id:"o"+Date.now(), codigo:codigo.trim(), nome:nome.trim(), cliente:cliente.trim(), adms:[], engs: eu ? [eu] : []});
+  var novoId = "o"+Date.now();
+  store.obras.push({id:novoId, codigo:codigo.trim(), nome:nome.trim(), cliente:cliente.trim(), adms:[], engs: eu ? [eu] : []});
+  store.cadastro = store.cadastro || {};
+  store.cadastro[novoId] = {pais:[], filhos:[]};
   saveStore();
   renderHome();
 }
@@ -2591,28 +2594,7 @@ function cadastroObra(){
   var id = store.obraId;
   if(!id) return {pais:[], filhos:[]};
   if(!store.cadastro[id]){
-    // pega o que já estiver em db se for a primeira vez
-    if(db && db.pais && db.pais.length){
-      store.cadastro[id] = {
-        pais: JSON.parse(JSON.stringify(db.pais)),
-        filhos: (db.filhos||[]).map(function(f){
-          var c = JSON.parse(JSON.stringify(f));
-          delete c.liberacoes;
-          return c;
-        })
-      };
-    } else if(id==="o329"){
-      store.cadastro[id] = {
-        pais: JSON.parse(JSON.stringify(seed.pais)),
-        filhos: seed.filhos.map(function(f){
-          var c = JSON.parse(JSON.stringify(f));
-          delete c.liberacoes;
-          return c;
-        })
-      };
-    } else {
-      store.cadastro[id] = {pais:[], filhos:[]};
-    }
+    store.cadastro[id] = {pais:[], filhos:[]};
   }
   return store.cadastro[id];
 }
