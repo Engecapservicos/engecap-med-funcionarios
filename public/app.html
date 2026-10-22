@@ -1707,10 +1707,9 @@ function medPertenceObra(m){
   if(m.obraId && m.obraId !== store.obraId) return false;
   var ehExtra = m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra";
   if(ehExtra){
-    if(m.obraId === store.obraId) return true;
     var chapa = String(m.chapa||"");
     return (db.medicoes||[]).some(function(x){
-      return String(x.chapa||"")===chapa && !x.tipo && itemExisteNaObra(x);
+      return String(x.chapa||"")===chapa && !x.tipo && itemExisteNaObra(x) && (!x.obraId || x.obraId===store.obraId);
     });
   }
   return itemExisteNaObra(m);
