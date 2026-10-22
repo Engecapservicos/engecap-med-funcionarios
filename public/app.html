@@ -596,11 +596,12 @@ async function pollPeriodoAtual(){
     var key = store.obraId+"|"+store.periodo;
     var remoto = r.data.medicoes || [];
     var local = ((store.dados||{})[key]||{}).medicoes || [];
-    var mudou = JSON.stringify(remoto) !== JSON.stringify(local);
+    var merged = mergeMedicoes(local, remoto);
+    var mudou = merged.length !== local.length || JSON.stringify(merged) !== JSON.stringify(local);
     if(mudou){
       store.dados = store.dados || {};
       store.dados[key] = store.dados[key] || { medicoes:[], libs:{} };
-      store.dados[key].medicoes = remoto;
+      store.dados[key].medicoes = merged;
       if(r.data.libs) store.dados[key].libs = r.data.libs;
       if(r.data.aprovacoes) store.dados[key].aprovacoes = r.data.aprovacoes;
       localStorage.setItem(STORE_KEY, JSON.stringify(store));
