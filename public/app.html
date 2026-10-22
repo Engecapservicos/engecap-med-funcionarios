@@ -1245,6 +1245,7 @@ function lancarVales(){
     db.medicoes.push({
       id: Date.now(),
       obraId: store.obraId,
+      apontador: userAtual(),
       tipo: "integracao",
       funcionario: funcionarioAtual.nome,
       funcao: funcionarioAtual.funcao,
@@ -1263,6 +1264,7 @@ function lancarVales(){
     db.medicoes.push({
       id: Date.now()+1,
       obraId: store.obraId,
+      apontador: userAtual(),
       tipo: "vtSabado",
       funcionario: funcionarioAtual.nome,
       funcao: funcionarioAtual.funcao,
@@ -1292,6 +1294,7 @@ function lancar(libId){
   db.medicoes.push({
     id: Date.now(),
     obraId: store.obraId,
+    apontador: userAtual(),
     libId: libId,
     filhoId: t.filho.id,
     funcionario: funcionarioAtual.nome,
@@ -1758,6 +1761,10 @@ function renderLancamento(){
     }).join("");
   }
   var meds = db.medicoes||[];
+  if(sessao && sessao.role==="apontador"){
+    var eu = userAtual();
+    meds = meds.filter(function(m){ return !m.apontador || m.apontador===eu; });
+  }
   if(!meds.length){
     document.getElementById("listaMed").innerHTML = "Nenhuma ainda.";
     return;
