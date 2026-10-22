@@ -1632,10 +1632,21 @@ var form = aberto ? (
 }
 
 
+function funcaoTemItemNaObra(fn){
+  var filhos = db.filhos || [];
+  return filhos.some(function(f){
+    return Object.keys(f.funcoes||{}).some(function(k){
+      return canonFuncao(k)===canonFuncao(fn) && Number(f.funcoes[k])>0;
+    });
+  });
+}
 function medPertenceObra(m){
   if(!m) return false;
-  if(m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra") return true;
   var filhos = db.filhos || [];
+  var ehExtra = m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra";
+  if(ehExtra){
+    return funcaoTemItemNaObra(m.funcao);
+  }
   if(m.filhoId && filhos.some(function(f){ return String(f.id)===String(m.filhoId); })) return true;
   if(m.item && filhos.some(function(f){ return String(f.nome).trim()===String(m.item).trim(); })) return true;
   return false;
