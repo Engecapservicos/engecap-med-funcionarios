@@ -432,7 +432,11 @@ function load(){
     return JSON.parse(JSON.stringify(seed));
   }
 }
-function save(){ localStorage.setItem(KEY, JSON.stringify(db)); salvarDbNaObra(); }
+function save(){
+  if(!sbOn()){ alert("Sem conexão com a nuvem. Não dá pra salvar."); return; }
+  localStorage.setItem(KEY, JSON.stringify(db));
+  salvarDbNaObra();
+}
 function resetar(){
   if(!confirm("Zerar os dados de teste?")) return;
   localStorage.removeItem(KEY);
@@ -1228,6 +1232,7 @@ function saldosPorFuncao(f, lib){
 
 
 function lancarVales(){
+  if(!sbOn()) return alert("Sem conexão com a nuvem. Não dá pra lançar.");
   if(!funcionarioAtual) return alert("Puxa a chapa primeiro");
   var qi = parseFloat(document.getElementById("qtdInt").value)||0;
   var qv = parseFloat(document.getElementById("qtdVt").value)||0;
@@ -1276,6 +1281,7 @@ function lancarVales(){
   save(); render();
 }
 function lancar(libId){
+  if(!sbOn()) return alert("Sem conexão com a nuvem. Não dá pra lançar.");
   if(!funcionarioAtual) return alert("Puxa a chapa primeiro");
   var q = parseFloat(document.getElementById("med-"+libId).value);
   var t = trechosLiberados(funcionarioAtual.funcao).find(function(x){ return String(x.lib.id)===String(libId); });
@@ -1751,7 +1757,7 @@ function renderLancamento(){
         '</div>';
     }).join("");
   }
-  var meds = (db.medicoes||[]).filter(function(m){ return !m.obraId || m.obraId===store.obraId; });
+  var meds = db.medicoes||[];
   if(!meds.length){
     document.getElementById("listaMed").innerHTML = "Nenhuma ainda.";
     return;
