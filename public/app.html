@@ -1239,6 +1239,7 @@ function lancarVales(){
   if(qi && !temExtra("integracao")){
     db.medicoes.push({
       id: Date.now(),
+      obraId: store.obraId,
       tipo: "integracao",
       funcionario: funcionarioAtual.nome,
       funcao: funcionarioAtual.funcao,
@@ -1256,6 +1257,7 @@ function lancarVales(){
   if(qv && !temExtra("vtSabado")){
     db.medicoes.push({
       id: Date.now()+1,
+      obraId: store.obraId,
       tipo: "vtSabado",
       funcionario: funcionarioAtual.nome,
       funcao: funcionarioAtual.funcao,
@@ -1321,6 +1323,7 @@ function lancar(libId){
   if(qv && !temExtra("vtSabado")){
     db.medicoes.push({
       id: Date.now()+2,
+      obraId: store.obraId,
       tipo: "vtSabado",
       funcionario: funcionarioAtual.nome,
       funcao: funcionarioAtual.funcao,
@@ -1692,12 +1695,16 @@ function itemExisteNaObra(m){
 }
 function medPertenceObra(m){
   if(!m) return false;
+  if(m.obraId && m.obraId !== store.obraId) return false;
   var ehExtra = m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra";
-  if(!ehExtra) return itemExisteNaObra(m);
-  var chapa = String(m.chapa||"");
-  return (db.medicoes||[]).some(function(x){
-    return String(x.chapa||"")===chapa && !x.tipo && itemExisteNaObra(x);
-  });
+  if(ehExtra){
+    if(m.obraId === store.obraId) return true;
+    var chapa = String(m.chapa||"");
+    return (db.medicoes||[]).some(function(x){
+      return String(x.chapa||"")===chapa && !x.tipo && itemExisteNaObra(x);
+    });
+  }
+  return itemExisteNaObra(m);
 }
 function medicoesDaObra(){
   return (db.medicoes||[]).filter(medPertenceObra);
@@ -2701,8 +2708,8 @@ function salvarDbNaObra(){
   (db.filhos||[]).forEach(function(f){ libs[String(f.id)] = f.liberacoes||[]; });
   libs.__aprovacoes = db.aprovacoes||{};
   var medsLimpos = (db.medicoes||[]).filter(function(m){
-    if(m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra") return true;
     if(m.obraId && m.obraId !== store.obraId) return false;
+    if(m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra") return true;
     return medPertenceObra(m);
   });
   store.dados[chaveDados()] = { medicoes: medsLimpos, libs: libs, aprovacoes: db.aprovacoes||{} };
