@@ -2536,6 +2536,9 @@ function novaObra(){
 }
 
 function abrirObra(id){
+  if(store.obraId && store.obraId !== id){
+    salvarDbNaObra();
+  }
   store.obraId = id;
   if(!store.periodo) store.periodo = "2026-08";
   function segue(){
@@ -2543,7 +2546,6 @@ function abrirObra(id){
     ir(sessao && sessao.role==="apontador"?"lancamento":"cadastro");
   }
   if(sbOn()){
-    salvarDbNaObra();
     cloudPushStore().then(function(){
       return cloudPullStore();
     }).then(function(){ segue(); iniciarPoll(); }).catch(function(){ segue(); iniciarPoll(); });
@@ -2551,7 +2553,7 @@ function abrirObra(id){
 }
 
 function trocarPeriodo(k){
-  salvarDbNaObra();
+  if(store.periodo && store.periodo !== k) salvarDbNaObra();
   store.periodo = k;
   function segue(){
     carregarDbDaObra();
