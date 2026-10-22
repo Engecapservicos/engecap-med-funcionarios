@@ -2583,7 +2583,7 @@ function renderHome(){
   }
   box.innerHTML = obras.map(function(o){
     return '<div class="bg-white rounded-2xl border-2 border-slate-200 p-5 hover:border-blue-400 relative">'+
-      (apont?'':'<button onclick="excluirObra(\''+o.id+'\',event)" class="absolute top-3 right-3 text-xs text-slate-400 hover:text-red-600">excluir</button>')+
+      ((sessao && sessao.role==="admin")?'<button onclick="excluirObra(\''+o.id+'\',event)" class="absolute top-3 right-3 text-xs text-slate-400 hover:text-red-600">excluir</button>':'')+
       '<button onclick="abrirObra(\''+o.id+'\')" class="text-left w-full">'+
       '<p class="text-3xl mb-2">🏗️</p><p class="font-bold">'+o.nome+'</p>'+
       '<p class="text-xs text-slate-500">'+((o.codigo||"")+" · "+(o.cliente||""))+'</p></button></div>';
