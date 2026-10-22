@@ -561,8 +561,7 @@ async function cloudPullStore(){
   (pers.data||[]).forEach(function(c){
     var libs = c.libs||{};
     var key = c.obra_id+"|"+c.periodo;
-    var local = localDados[key] || {};
-    var meds = mergeMedicoes(local.medicoes, c.medicoes||[]);
+    var meds = c.medicoes||[];
     store.dados[key] = {
       medicoes: meds,
       libs: libs,
@@ -1695,8 +1694,11 @@ function itemExisteNaObra(m){
 function medPertenceObra(m){
   if(!m) return false;
   var ehExtra = m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra";
-  if(ehExtra) return true;
-  return itemExisteNaObra(m);
+  if(!ehExtra) return itemExisteNaObra(m);
+  var chapa = String(m.chapa||"");
+  return (db.medicoes||[]).some(function(x){
+    return String(x.chapa||"")===chapa && !x.tipo && itemExisteNaObra(x);
+  });
 }
 function medicoesDaObra(){
   return (db.medicoes||[]).filter(medPertenceObra);
