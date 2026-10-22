@@ -2718,8 +2718,7 @@ function salvarDbNaObra(){
   libs.__aprovacoes = db.aprovacoes||{};
   var medsLimpos = (db.medicoes||[]).filter(function(m){
     if(m.obraId && m.obraId !== store.obraId) return false;
-    if(m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra") return true;
-    return medPertenceObra(m);
+    return true;
   });
   store.dados[chaveDados()] = { medicoes: medsLimpos, libs: libs, aprovacoes: db.aprovacoes||{} };
   saveStore();
