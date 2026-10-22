@@ -1316,6 +1316,7 @@ function lancar(libId){
   if(qi && !temExtra("integracao")){
     db.medicoes.push({
       id: Date.now()+1,
+      obraId: store.obraId,
       tipo: "integracao",
       funcionario: funcionarioAtual.nome,
       funcao: funcionarioAtual.funcao,
@@ -1358,10 +1359,10 @@ function editarMed(id){
     if(isNaN(qi) || isNaN(qv) || qi<0 || qv<0) return alert("Valor inválido");
     db.medicoes = db.medicoes.filter(function(x){ return x.id!==id; });
     if(qi){
-      db.medicoes.push({id:Date.now(), tipo:"integracao", funcionario:m.funcionario, funcao:m.funcao, chapa:m.chapa, qtd:qi, vu:PRECOS_EXTRA.integracao, valor:qi*PRECOS_EXTRA.integracao, item:"Integração", pai:"Vales", trecho:"-"});
+      db.medicoes.push({id:Date.now(), obraId:store.obraId, tipo:"integracao", funcionario:m.funcionario, funcao:m.funcao, chapa:m.chapa, qtd:qi, vu:PRECOS_EXTRA.integracao, valor:qi*PRECOS_EXTRA.integracao, item:"Integração", pai:"Vales", trecho:"-"});
     }
     if(qv){
-      db.medicoes.push({id:Date.now()+1, tipo:"vtSabado", funcionario:m.funcionario, funcao:m.funcao, chapa:m.chapa, qtd:qv, vu:PRECOS_EXTRA.vtSabado, valor:qv*PRECOS_EXTRA.vtSabado, item:"VT de sábado", pai:"Vales", trecho:"-"});
+      db.medicoes.push({id:Date.now()+1, obraId:store.obraId, tipo:"vtSabado", funcionario:m.funcionario, funcao:m.funcao, chapa:m.chapa, qtd:qv, vu:PRECOS_EXTRA.vtSabado, valor:qv*PRECOS_EXTRA.vtSabado, item:"VT de sábado", pai:"Vales", trecho:"-"});
     }
     save(); render();
     return;
