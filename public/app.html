@@ -1745,7 +1745,7 @@ function renderLancamento(){
         '</div>';
     }).join("");
   }
-  var meds = medicoesDaObra();
+  var meds = db.medicoes||[];
   if(!meds.length){
     document.getElementById("listaMed").innerHTML = "Nenhuma ainda.";
     return;
