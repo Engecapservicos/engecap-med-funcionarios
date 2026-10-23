@@ -1262,7 +1262,7 @@ function saldosPorFuncao(f, lib){
 }
 
 
-function lancarVales(){
+async function lancarVales(){
   if(!sbOn()) return alert("Sem conexão com a nuvem. Não dá pra lançar.");
   if(!funcionarioAtual) return alert("Puxa a chapa primeiro");
   var qi = parseFloat(document.getElementById("qtdInt").value)||0;
@@ -1311,9 +1311,20 @@ function lancarVales(){
     n++;
   }
   if(!n) return alert("Essa chapa já tem Integração e VT lançados");
-  save(); render();
+  salvarDbNaObra();
+  if(sbOn()){
+    try {
+      await cloudPushStore();
+      alert("Lançado e salvo na nuvem.");
+    } catch(e){
+      alert("Erro ao salvar na nuvem: "+e.message);
+    }
+  } else {
+    alert("Sem conexão com a nuvem. Lançamento ficou só neste aparelho.");
+  }
+  render();
 }
-function lancar(libId){
+async function lancar(libId){
   if(!sbOn()) return alert("Sem conexão com a nuvem. Não dá pra lançar.");
   if(!funcionarioAtual) return alert("Puxa a chapa primeiro");
   var q = parseFloat(document.getElementById("med-"+libId).value);
@@ -1390,7 +1401,18 @@ function lancar(libId){
     document.getElementById("qtdVt").value = "";
   }
   document.getElementById("med-"+libId).value = "";
-  save(); render();
+  salvarDbNaObra();
+  if(sbOn()){
+    try {
+      await cloudPushStore();
+      alert("Lançado e salvo na nuvem.");
+    } catch(e){
+      alert("Erro ao salvar na nuvem: "+e.message);
+    }
+  } else {
+    alert("Sem conexão com a nuvem. Lançamento ficou só neste aparelho.");
+  }
+  render();
 }
 function editarMed(id){
   var m = db.medicoes.find(function(x){ return x.id===id; });
