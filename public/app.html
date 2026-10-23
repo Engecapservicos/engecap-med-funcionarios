@@ -540,8 +540,8 @@ function mergeMedicoes(local, remoto){
   var mapa = {};
   function add(m){
     if(!m) return;
-    var k = String(m.id||"") + "|" + String(m.chapa||"") + "|" + String(m.libId||"") + "|" + String(m.qtd||"");
-    if(!mapa[k]) mapa[k] = m;
+    var k = String(m.id||"") || (String(m.chapa||"")+"|"+String(m.tipo||"")+"|"+String(m.item||"")+"|"+String(m.libId||""));
+    mapa[k] = m;
   }
   (remoto||[]).forEach(add);
   (local||[]).forEach(add);
@@ -654,11 +654,8 @@ async function cloudPushStore(){
     var d = store.dados[key];
     var libsPush = d.libs || {};
     libsPush.__aprovacoes = d.aprovacoes || libsPush.__aprovacoes || {};
-    var atual = await sb.from("mo_periodo").select("medicoes").eq("obra_id", parts[0]).eq("periodo", parts[1]).maybeSingle();
-    var remoto = (atual.data && atual.data.medicoes) || [];
-    var juntos = mergeMedicoes(d.medicoes||[], remoto);
     var r3 = await sb.from("mo_periodo").upsert({
-      obra_id:parts[0], periodo:parts[1], medicoes:juntos, libs:libsPush,
+      obra_id:parts[0], periodo:parts[1], medicoes:d.medicoes||[], libs:libsPush,
       updated_at: new Date().toISOString()
     });
     if(r3.error) console.warn(r3.error);
@@ -1292,6 +1289,10 @@ function lancar(libId){
   var q = parseFloat(document.getElementById("med-"+libId).value);
   var t = trechosLiberados(funcionarioAtual.funcao).find(function(x){ return String(x.lib.id)===String(libId); });
   if(!q || q<=0) return alert("Informa a quantidade");
+  var jaTem = db.medicoes.some(function(m){
+    return m.chapa===funcionarioAtual.chapa && m.libId===libId && m.obraId===store.obraId && !m.tipo;
+  });
+  if(jaTem) return alert("Essa chapa já tem lançamento neste trecho. Edita o existente.");
   if(q>t.saldo) return alert("Estoura o teto desta função neste trecho. Saldo "+t.saldo+" "+t.filho.un);
   var vu = vuFuncao(t.filho.funcoes, funcionarioAtual.funcao);
   if(!vu) return alert("Essa função não recebe neste item");
