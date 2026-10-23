@@ -1391,11 +1391,13 @@ function editarMed(id){
   }
   save(); render();
 }
-function excluirMed(id){
+async function excluirMed(id){
   db.medicoes = db.medicoes.filter(function(m){ return m.id!==id; });
-  save();
-  if(sbOn()) cloudPushStore().then(function(){ render(); }).catch(function(){ render(); });
-  else render();
+  salvarDbNaObra();
+  if(sbOn()){
+    try { await cloudPushStore(); } catch(e){ console.warn(e); }
+  }
+  render();
 }
 
 
