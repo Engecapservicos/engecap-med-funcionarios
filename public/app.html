@@ -536,6 +536,15 @@ async function cloudSaveFuncionarios(rows){
   var r = await sb.from("funcionarios").upsert(payload, { onConflict: "chapa" });
   if(r.error) throw new Error(r.error.message);
 }
+function dedupMedicoes(arr){
+  var mapa = {};
+  (arr||[]).forEach(function(m){
+    if(!m) return;
+    var k = String(m.chapa||"")+"|"+String(m.tipo||"")+"|"+String(m.item||"")+"|"+String(m.libId||"")+"|"+String(m.obraId||"");
+    mapa[k] = m;
+  });
+  return Object.keys(mapa).map(function(k){ return mapa[k]; });
+}
 function mergeMedicoes(local, remoto){
   var mapa = {};
   function add(m){
@@ -595,7 +604,7 @@ async function pollPeriodoAtual(){
     var r = await sb.from("mo_periodo").select("medicoes,libs,aprovacoes").eq("obra_id", store.obraId).eq("periodo", store.periodo).maybeSingle();
     if(r.error || !r.data) return;
     var key = store.obraId+"|"+store.periodo;
-    var remoto = r.data.medicoes || [];
+    var remoto = dedupMedicoes(r.data.medicoes || []);
     var local = ((store.dados||{})[key]||{}).medicoes || [];
     var mudou = JSON.stringify(remoto) !== JSON.stringify(local);
     if(mudou){
@@ -2730,10 +2739,10 @@ function salvarDbNaObra(){
   var libs = {};
   (db.filhos||[]).forEach(function(f){ libs[String(f.id)] = f.liberacoes||[]; });
   libs.__aprovacoes = db.aprovacoes||{};
-  var medsLimpos = (db.medicoes||[]).filter(function(m){
+  var medsLimpos = dedupMedicoes((db.medicoes||[]).filter(function(m){
     if(m.obraId && m.obraId !== store.obraId) return false;
     return true;
-  });
+  }));
   store.dados[chaveDados()] = { medicoes: medsLimpos, libs: libs, aprovacoes: db.aprovacoes||{} };
   saveStore();
 }
