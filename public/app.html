@@ -277,7 +277,7 @@
             <p class="text-[11px] text-slate-400 mt-1">R$ 19,98</p>
           </div>
         </div>
-        <button type="button" onclick="lancarVales()" class="mt-3 bg-amber-500 hover:bg-amber-600 text-white text-sm px-4 py-2 rounded-lg font-medium">Lançar só Integração / VT</button>
+        
         <div id="boxPeriodoServ" class="hidden grid md:grid-cols-3 gap-3 mt-4 pt-3 border-t border-white/10">
           <div>
             <label class="text-xs text-slate-300">Entrou em</label>
@@ -565,7 +565,8 @@ async function cloudPullStore(){
   (pers.data||[]).forEach(function(c){
     var libs = c.libs||{};
     var key = c.obra_id+"|"+c.periodo;
-    var meds = c.medicoes||[];
+    var local = localDados[key] || {};
+    var meds = mergeMedicoes(local.medicoes, c.medicoes||[]);
     store.dados[key] = {
       medicoes: meds,
       libs: libs,
@@ -1708,16 +1709,11 @@ function medPertenceObra(m){
   if(!m) return false;
   if(m.obraId && m.obraId !== store.obraId) return false;
   var ehExtra = m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra";
-  if(ehExtra){
-    var chapa = String(m.chapa||"");
-    return (db.medicoes||[]).some(function(x){
-      return String(x.chapa||"")===chapa && !x.tipo && itemExisteNaObra(x) && (!x.obraId || x.obraId===store.obraId);
-    });
-  }
+  if(ehExtra) return m.obraId === store.obraId;
   return itemExisteNaObra(m);
 }
 function medicoesDaObra(){
-  return db.medicoes||[];
+  return (db.medicoes||[]).filter(medPertenceObra);
 }
 function renderLancamento(){
   mostrarPeriodoServente();
@@ -1761,7 +1757,7 @@ function renderLancamento(){
         '</div>';
     }).join("");
   }
-  var meds = db.medicoes||[];
+  var meds = medicoesDaObra();
   if(!meds.length){
     document.getElementById("listaMed").innerHTML = "Nenhuma ainda.";
     return;
