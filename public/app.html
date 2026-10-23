@@ -1392,10 +1392,16 @@ function editarMed(id){
   save(); render();
 }
 async function excluirMed(id){
+  if(!confirm("Excluir este lançamento?")) return;
   db.medicoes = db.medicoes.filter(function(m){ return m.id!==id; });
   salvarDbNaObra();
   if(sbOn()){
-    try { await cloudPushStore(); } catch(e){ console.warn(e); }
+    try {
+      await cloudPushStore();
+      alert("Excluído e salvo na nuvem.");
+    } catch(e){
+      alert("Erro ao salvar na nuvem: "+e.message);
+    }
   }
   render();
 }
