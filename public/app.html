@@ -536,12 +536,18 @@ async function cloudSaveFuncionarios(rows){
   var r = await sb.from("funcionarios").upsert(payload, { onConflict: "chapa" });
   if(r.error) throw new Error(r.error.message);
 }
+function medKey(m){
+  if(!m) return "";
+  // chave lógica estável: mesma medição mesmo com id diferente
+  return String(m.chapa||"")+"|"+String(m.tipo||"")+"|"+String(m.item||"")+"|"+String(m.libId||"")+"|"+String(m.obraId||"");
+}
 function dedupMedicoes(arr){
   var mapa = {};
   (arr||[]).forEach(function(m){
     if(!m) return;
-    var k = String(m.chapa||"")+"|"+String(m.tipo||"")+"|"+String(m.item||"")+"|"+String(m.libId||"")+"|"+String(m.obraId||"");
-    mapa[k] = m;
+    var k = medKey(m);
+    var atual = mapa[k];
+    if(!atual || (m.updated_at||"") > (atual.updated_at||"")) mapa[k] = m;
   });
   return Object.keys(mapa).map(function(k){ return mapa[k]; });
 }
@@ -549,8 +555,9 @@ function mergeMedicoes(local, remoto){
   var mapa = {};
   function add(m){
     if(!m) return;
-    var k = String(m.id||"") || (String(m.chapa||"")+"|"+String(m.tipo||"")+"|"+String(m.item||"")+"|"+String(m.libId||""));
-    mapa[k] = m;
+    var k = medKey(m);
+    var atual = mapa[k];
+    if(!atual || (m.updated_at||"") >= (atual.updated_at||"")) mapa[k] = m;
   }
   (remoto||[]).forEach(add);
   (local||[]).forEach(add);
@@ -575,11 +582,17 @@ async function cloudPullStore(){
     var libs = c.libs||{};
     var key = c.obra_id+"|"+c.periodo;
     var local = localDados[key] || {};
-    var meds = mergeMedicoes(local.medicoes, c.medicoes||[]);
+    var remoto = dedupMedicoes(c.medicoes||[]);
+    var localMeds = local.medicoes || [];
+    var remotoAtualizado = c.updated_at || "";
+    var localAtualizado = local._updated_at || "";
+    var usarRemoto = !localAtualizado || remotoAtualizado > localAtualizado;
+    var meds = usarRemoto ? remoto : mergeMedicoes(localMeds, remoto);
     store.dados[key] = {
       medicoes: meds,
       libs: libs,
-      aprovacoes: c.aprovacoes || libs.__aprovacoes || local.aprovacoes || {}
+      aprovacoes: c.aprovacoes || libs.__aprovacoes || local.aprovacoes || {},
+      _updated_at: remotoAtualizado || localAtualizado
     };
   });
   Object.keys(localDados).forEach(function(key){
@@ -601,16 +614,22 @@ var _lastMedCount = -1;
 async function pollPeriodoAtual(){
   if(!sbOn() || !store.obraId || !store.periodo) return;
   try{
-    var r = await sb.from("mo_periodo").select("medicoes,libs,aprovacoes").eq("obra_id", store.obraId).eq("periodo", store.periodo).maybeSingle();
+    var r = await sb.from("mo_periodo").select("medicoes,libs,aprovacoes,updated_at").eq("obra_id", store.obraId).eq("periodo", store.periodo).maybeSingle();
     if(r.error || !r.data) return;
     var key = store.obraId+"|"+store.periodo;
     var remoto = dedupMedicoes(r.data.medicoes || []);
     var local = ((store.dados||{})[key]||{}).medicoes || [];
-    var mudou = JSON.stringify(remoto) !== JSON.stringify(local);
+    var remotoAtualizado = r.data.updated_at || "";
+    var localAtualizado = (store.dados[key] && store.dados[key]._updated_at) || "";
+    // se o remoto for mais recente, ele ganha (resolve exclusão)
+    var usarRemoto = !localAtualizado || remotoAtualizado > localAtualizado;
+    var final = usarRemoto ? remoto : mergeMedicoes(local, remoto);
+    var mudou = JSON.stringify(final) !== JSON.stringify(local);
     if(mudou){
       store.dados = store.dados || {};
       store.dados[key] = store.dados[key] || { medicoes:[], libs:{} };
-      store.dados[key].medicoes = remoto;
+      store.dados[key].medicoes = final;
+      store.dados[key]._updated_at = remotoAtualizado;
       if(r.data.libs) store.dados[key].libs = r.data.libs;
       if(r.data.aprovacoes) store.dados[key].aprovacoes = r.data.aprovacoes;
       localStorage.setItem(STORE_KEY, JSON.stringify(store));
@@ -663,10 +682,12 @@ async function cloudPushStore(){
     var d = store.dados[key];
     var libsPush = d.libs || {};
     libsPush.__aprovacoes = d.aprovacoes || libsPush.__aprovacoes || {};
+    var agora = new Date().toISOString();
     var r3 = await sb.from("mo_periodo").upsert({
       obra_id:parts[0], periodo:parts[1], medicoes:d.medicoes||[], libs:libsPush,
-      updated_at: new Date().toISOString()
+      updated_at: agora
     });
+    d._updated_at = agora;
     if(r3.error) console.warn(r3.error);
   }
 }
@@ -1307,6 +1328,7 @@ function lancar(libId){
   if(!vu) return alert("Essa função não recebe neste item");
   db.medicoes.push({
     id: Date.now(),
+    updated_at: new Date().toISOString(),
     obraId: store.obraId,
     apontador: userAtual(),
     libId: libId,
@@ -1332,6 +1354,7 @@ function lancar(libId){
     if(ja){ ja.qtd = qi; ja.vu = PRECOS_EXTRA.integracao; ja.valor = qi*PRECOS_EXTRA.integracao; }
     else db.medicoes.push({
       id: Date.now()+1,
+      updated_at: new Date().toISOString(),
       obraId: store.obraId,
       tipo: "integracao",
       funcionario: funcionarioAtual.nome,
@@ -1351,6 +1374,7 @@ function lancar(libId){
     if(ja2){ ja2.qtd = qv; ja2.vu = PRECOS_EXTRA.vtSabado; ja2.valor = qv*PRECOS_EXTRA.vtSabado; }
     else db.medicoes.push({
       id: Date.now()+2,
+      updated_at: new Date().toISOString(),
       obraId: store.obraId,
       tipo: "vtSabado",
       funcionario: funcionarioAtual.nome,
@@ -1393,16 +1417,20 @@ function editarMed(id){
     if(q>saldo) return alert("Estoura o teto do trecho. Máximo "+saldo);
     m.qtd = q;
     m.valor = q * (m.vu||0);
+    m.updated_at = new Date().toISOString();
   } else {
     m.qtd = q;
     if(m.tipo==="integracao") { m.vu = PRECOS_EXTRA.integracao; m.valor = q*m.vu; }
     if(m.tipo==="vtSabado") { m.vu = PRECOS_EXTRA.vtSabado; m.valor = q*m.vu; }
+    m.updated_at = new Date().toISOString();
   }
   save(); render();
 }
 async function excluirMed(id){
   if(!confirm("Excluir este lançamento?")) return;
+  var antes = db.medicoes.length;
   db.medicoes = db.medicoes.filter(function(m){ return m.id!==id; });
+  if(db.medicoes.length === antes) return alert("Lançamento não encontrado.");
   salvarDbNaObra();
   if(sbOn()){
     try {
