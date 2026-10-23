@@ -1393,7 +1393,9 @@ function editarMed(id){
 }
 function excluirMed(id){
   db.medicoes = db.medicoes.filter(function(m){ return m.id!==id; });
-  save(); render();
+  save();
+  if(sbOn()) cloudPushStore().then(function(){ render(); }).catch(function(){ render(); });
+  else render();
 }
 
 
