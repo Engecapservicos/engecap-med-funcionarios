@@ -655,8 +655,11 @@ async function cloudPushStore(){
     var d = store.dados[key];
     var libsPush = d.libs || {};
     libsPush.__aprovacoes = d.aprovacoes || libsPush.__aprovacoes || {};
+    var atual = await sb.from("mo_periodo").select("medicoes").eq("obra_id", parts[0]).eq("periodo", parts[1]).maybeSingle();
+    var remoto = (atual.data && atual.data.medicoes) || [];
+    var juntos = mergeMedicoes(d.medicoes||[], remoto);
     var r3 = await sb.from("mo_periodo").upsert({
-      obra_id:parts[0], periodo:parts[1], medicoes:d.medicoes||[], libs:libsPush,
+      obra_id:parts[0], periodo:parts[1], medicoes:juntos, libs:libsPush,
       updated_at: new Date().toISOString()
     });
     if(r3.error) console.warn(r3.error);
@@ -1240,7 +1243,7 @@ function lancarVales(){
   var qv = parseFloat(document.getElementById("qtdVt").value)||0;
   if(!qi && !qv) return alert("Informa a quantidade de Integração ou VT");
   function temExtra(tipo){
-    return db.medicoes.some(function(m){ return m.chapa===funcionarioAtual.chapa && m.tipo===tipo; });
+    return db.medicoes.some(function(m){ return m.chapa===funcionarioAtual.chapa && m.tipo===tipo && m.obraId===store.obraId; });
   }
   var n = 0;
   if(qi && !temExtra("integracao")){
@@ -1313,7 +1316,7 @@ function lancar(libId){
   var qi = parseFloat(document.getElementById("qtdInt").value)||0;
   var qv = parseFloat(document.getElementById("qtdVt").value)||0;
   function temExtra(tipo){
-    return db.medicoes.some(function(m){ return m.chapa===funcionarioAtual.chapa && m.tipo===tipo; });
+    return db.medicoes.some(function(m){ return m.chapa===funcionarioAtual.chapa && m.tipo===tipo && m.obraId===store.obraId; });
   }
   if(qi && !temExtra("integracao")){
     db.medicoes.push({
