@@ -442,12 +442,16 @@ function save(){
   salvarDbNaObra();
 }
 function resetar(){
-  if(!confirm("Zerar os dados de teste?")) return;
+  if(!sessao || sessao.role!=="admin") return alert("Só admin pode resetar.");
+  var conf = prompt("Digite RESETAR em maiúsculo para zerar os dados locais de teste:");
+  if(conf!=="RESETAR") return alert("Cancelado.");
+  if(!confirm("Tem certeza? Isso zera o local e pode afetar a sincronização.")) return;
   localStorage.removeItem(KEY);
   db = JSON.parse(JSON.stringify(seed));
-  paiSel = db.pais[0].id;
+  paiSel = db.pais[0] ? db.pais[0].id : null;
   save();
   render();
+  if(typeof addLog==="function") addLog("RESET dados executado por admin");
 }
 
 
@@ -788,6 +792,7 @@ async function fazerLogin(){
   sessao = { email:u.email|| (user+"@engecap.com"), role:u.role, user:u.user||user };
   localStorage.setItem("engecap_mo_sessao", JSON.stringify(sessao));
   if(typeof addLog==="function") addLog("Login "+sessao.user+" ("+sessao.role+")");
+  setTimeout(checarBackupDiario, 1500);
   aplicarAcesso();
   if(sessao.role==="apontador"){
     if(!store.obraId && store.obras && store.obras[0]) {
@@ -1621,7 +1626,10 @@ function excluirObra(id, ev){
   if(ev) ev.stopPropagation();
   var o = (store.obras||[]).find(function(x){ return x.id===id; });
   if(!o) return;
-  if(!confirm("Excluir a obra "+o.nome+" e as medições dela?")) return;
+  if(!sessao || sessao.role!=="admin") return alert("Só admin exclui obra.");
+  var conf = prompt("Para excluir a obra \""+o.nome+"\", digite o nome dela exatamente:");
+  if(!conf || conf.trim().toLowerCase()!==String(o.nome||"").trim().toLowerCase()) return alert("Nome não confere. Cancelado.");
+  if(!confirm("Confirma exclusão permanente da obra "+o.nome+" e de todas as medições?")) return;
   store.obras = store.obras.filter(function(x){ return x.id!==id; });
   Object.keys(store.dados||{}).forEach(function(k){
     if(k.indexOf(id+"|")===0) delete store.dados[k];
@@ -2597,6 +2605,19 @@ function excluirUser(id){
   renderAdmin();
 }
 
+
+function checarBackupDiario(){
+  if(!sessao || sessao.role!=="admin") return;
+  var last = localStorage.getItem("engecap_mo_last_backup");
+  var agora = Date.now();
+  var umDia = 24*60*60*1000;
+  if(!last || (agora - new Date(last).getTime()) > umDia){
+    if(confirm("Faz mais de 24h que não baixa backup. Quer baixar agora?")){
+      baixarBackup();
+    }
+  }
+}
+
 function baixarBackup(){
   try{
     salvarDbNaObra();
@@ -2619,6 +2640,7 @@ function baixarBackup(){
     document.body.removeChild(a);
     var msg = document.getElementById("backupMsg");
     if(msg) msg.textContent = "Backup baixado: " + nome;
+    localStorage.setItem("engecap_mo_last_backup", new Date().toISOString());
     if(typeof addLog==="function") addLog("Baixou backup " + nome);
   }catch(e){
     alert("Erro ao gerar backup: " + e.message);
