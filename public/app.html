@@ -1916,12 +1916,21 @@ function seloEng(ap, chapa, tot){
     '</div>';
 }
 function htmlFolha(chapa, meds, ap){
+  // dedup pra não repetir Integração / VT na impressão
+  meds = dedupMedicoes(meds||[]);
   var o = dadosObraAtual();
   var nome = (meds[0]&&meds[0].funcionario)||"";
   var funcao = (meds[0]&&meds[0].funcao)||"";
   var serv = meds.filter(function(m){ return !m.tipo || (m.tipo!=="integracao" && m.tipo!=="vtSabado" && m.tipo!=="extra"); });
   var extras = meds.filter(function(m){ return m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra"; });
-  var tot = meds.reduce(function(a,m){ return a+Number(m.valor||0); },0);
+  // garante 1 de cada tipo de vale
+  var extrasUnicos = {};
+  extras.forEach(function(m){
+    var k = m.tipo || m.item || "";
+    if(!extrasUnicos[k] || (m.updated_at||"") > (extrasUnicos[k].updated_at||"")) extrasUnicos[k] = m;
+  });
+  extras = Object.keys(extrasUnicos).map(function(k){ return extrasUnicos[k]; });
+  var tot = serv.concat(extras).reduce(function(a,m){ return a+Number(m.valor||0); },0);
   var linhas = serv.map(function(m,i){
     return "<tr><td>"+(i+1)+"</td><td>"+(m.pai||"")+"</td><td>"+(m.item||"")+"</td><td>"+(m.trecho||"-")+"</td><td>"+(m.qtd||"")+" "+(m.un||"")+"</td><td>"+money(m.vu||0)+"</td><td>"+money(m.valor)+"</td></tr>";
   }).join("");
