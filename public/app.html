@@ -117,6 +117,10 @@
             <button type="button" onclick="enviarFuncionariosNuvem()" class="mt-2 bg-blue-600 text-white text-sm px-3 py-2 rounded-lg">Enviar lista para a nuvem</button>
             <p id="csvMsg" class="text-xs text-slate-500 mt-2"></p>
             <p id="nuvemStatus" class="text-xs text-slate-400 mt-1"></p>
+            <hr class="my-3" />
+            <p class="text-xs text-slate-500 mb-2">Backup completo (obras, cadastros, lançamentos, aprovações)</p>
+            <button type="button" onclick="baixarBackup()" class="bg-emerald-600 text-white text-sm px-3 py-2 rounded-lg">⬇️ Baixar backup</button>
+            <p id="backupMsg" class="text-xs text-slate-500 mt-2"></p>
           </div>
           <div id="listaLogs" class="max-h-[420px] overflow-y-auto text-sm"></div>
         </section>
@@ -2592,6 +2596,35 @@ function excluirUser(id){
   addLog("Excluiu usuário "+u.user);
   renderAdmin();
 }
+
+function baixarBackup(){
+  try{
+    salvarDbNaObra();
+    var payload = {
+      exportadoEm: new Date().toISOString(),
+      obras: store.obras || [],
+      cadastro: store.cadastro || {},
+      dados: store.dados || {},
+      funcionarios: (typeof FUNCIONARIOS!=="undefined" ? FUNCIONARIOS : []),
+      periodoAtual: store.periodo || "",
+      obraAtual: store.obraId || ""
+    };
+    var blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+    var a = document.createElement("a");
+    var nome = "backup-engecap-mo-" + new Date().toISOString().slice(0,10) + ".json";
+    a.href = URL.createObjectURL(blob);
+    a.download = nome;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    var msg = document.getElementById("backupMsg");
+    if(msg) msg.textContent = "Backup baixado: " + nome;
+    if(typeof addLog==="function") addLog("Baixou backup " + nome);
+  }catch(e){
+    alert("Erro ao gerar backup: " + e.message);
+  }
+}
+
 function renderAdmin(){
   var box = document.getElementById("listaUsers");
   if(!box) return;
