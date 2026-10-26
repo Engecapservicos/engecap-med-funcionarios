@@ -469,7 +469,7 @@ async function sincronizarNuvem(){
     await cloudPullStore();
     if(store.obraId) carregarDbDaObra();
     render();
-    alert("Sincronizado com a nuvem.");
+    alert("Sincronizado com a nuvem."); addLog("Sincronizou nuvem");
   }catch(e){
     alert("Falha na nuvem: "+e.message);
   }
@@ -584,15 +584,13 @@ async function cloudPullStore(){
     var local = localDados[key] || {};
     var remoto = dedupMedicoes(c.medicoes||[]);
     var localMeds = local.medicoes || [];
+    var meds = mergeMedicoes(localMeds, remoto);
     var remotoAtualizado = c.updated_at || "";
-    var localAtualizado = local._updated_at || "";
-    var usarRemoto = !localAtualizado || remotoAtualizado > localAtualizado;
-    var meds = usarRemoto ? remoto : mergeMedicoes(localMeds, remoto);
     store.dados[key] = {
       medicoes: meds,
       libs: libs,
       aprovacoes: c.aprovacoes || libs.__aprovacoes || local.aprovacoes || {},
-      _updated_at: remotoAtualizado || localAtualizado
+      _updated_at: remotoAtualizado || local._updated_at || ""
     };
   });
   Object.keys(localDados).forEach(function(key){
@@ -619,17 +617,13 @@ async function pollPeriodoAtual(){
     var key = store.obraId+"|"+store.periodo;
     var remoto = dedupMedicoes(r.data.medicoes || []);
     var local = ((store.dados||{})[key]||{}).medicoes || [];
-    var remotoAtualizado = r.data.updated_at || "";
-    var localAtualizado = (store.dados[key] && store.dados[key]._updated_at) || "";
-    // se o remoto for mais recente, ele ganha (resolve exclusão)
-    var usarRemoto = !localAtualizado || remotoAtualizado > localAtualizado;
-    var final = usarRemoto ? remoto : mergeMedicoes(local, remoto);
+    var final = mergeMedicoes(local, remoto);
     var mudou = JSON.stringify(final) !== JSON.stringify(local);
     if(mudou){
       store.dados = store.dados || {};
       store.dados[key] = store.dados[key] || { medicoes:[], libs:{} };
       store.dados[key].medicoes = final;
-      store.dados[key]._updated_at = remotoAtualizado;
+      if(r.data.updated_at) store.dados[key]._updated_at = r.data.updated_at;
       if(r.data.libs) store.dados[key].libs = r.data.libs;
       if(r.data.aprovacoes) store.dados[key].aprovacoes = r.data.aprovacoes;
       localStorage.setItem(STORE_KEY, JSON.stringify(store));
@@ -682,13 +676,32 @@ async function cloudPushStore(){
     var d = store.dados[key];
     var libsPush = d.libs || {};
     libsPush.__aprovacoes = d.aprovacoes || libsPush.__aprovacoes || {};
+
+    // TRAVA ANTI-PERDA: puxa o remoto e faz merge antes de subir.
+    // Um aparelho com menos lançamentos nunca mais apaga os da nuvem.
+    var remotoRow = await sb.from("mo_periodo")
+      .select("medicoes")
+      .eq("obra_id", parts[0])
+      .eq("periodo", parts[1])
+      .maybeSingle();
+    var remotoMeds = (remotoRow.data && remotoRow.data.medicoes) || [];
+    var localMeds = d.medicoes || [];
+    var merged = mergeMedicoes(localMeds, remotoMeds);
+
+    // se o merge tiver menos itens que o remoto, não sobrescreve
+    if(merged.length < remotoMeds.length){
+      console.warn("Bloqueado push que reduziria lançamentos", key, "remoto:", remotoMeds.length, "merged:", merged.length);
+      merged = remotoMeds; // mantém o remoto
+    }
+
+    d.medicoes = merged;
     var agora = new Date().toISOString();
     var r3 = await sb.from("mo_periodo").upsert({
-      obra_id:parts[0], periodo:parts[1], medicoes:d.medicoes||[], libs:libsPush,
+      obra_id:parts[0], periodo:parts[1], medicoes:merged, libs:libsPush,
       updated_at: agora
     });
     d._updated_at = agora;
-    if(r3.error) console.warn(r3.error);
+    if(r3.error) throw new Error(r3.error.message || "Falha ao salvar período na nuvem");
   }
 }
 
@@ -961,6 +974,7 @@ function preencherFuncoes(f){
   }
 }
 function salvarFilho(){
+  /* log on success below */
   if(!paiSel) return;
   var nome = document.getElementById("filhoNome").value.trim();
   var un = document.getElementById("filhoUn").value;
@@ -1315,7 +1329,7 @@ async function lancarVales(){
   if(sbOn()){
     try {
       await cloudPushStore();
-      alert("Lançado e salvo na nuvem.");
+      alert("Lançado e salvo na nuvem."); addLog("Lançou medição · chapa "+(funcionarioAtual&&funcionarioAtual.chapa||"")+" · "+(t&&t.filho&&t.filho.nome||"")+" · qtd "+q);
     } catch(e){
       alert("Erro ao salvar na nuvem: "+e.message);
     }
@@ -1457,7 +1471,7 @@ async function excluirMed(id){
   if(sbOn()){
     try {
       await cloudPushStore();
-      alert("Excluído e salvo na nuvem.");
+      alert("Excluído e salvo na nuvem."); addLog("Excluiu lançamento id "+id);
     } catch(e){
       alert("Erro ao salvar na nuvem: "+e.message);
     }
@@ -1983,6 +1997,7 @@ function carimboAprovacao(){
   };
 }
 function aprovarMedicao(chapa, silencioso){
+  addLog("Aprovou medição chapa "+chapa);
   if(!podeAprovar()) return alert("Só engenheiro/admin aprova");
   db.aprovacoes = db.aprovacoes || {};
   db.aprovacoes[String(chapa)] = carimboAprovacao();
@@ -2485,8 +2500,22 @@ function loadLogs(){
 }
 function addLog(txt){
   var logs = loadLogs();
-  logs.unshift({t:new Date().toLocaleString("pt-BR"), txt:txt, who:(sessao&&sessao.user)||"-"});
-  localStorage.setItem("engecap_mo_logs", JSON.stringify(logs.slice(0,200)));
+  logs.unshift({t:new Date().toLocaleString("pt-BR"), txt:txt, who:(sessao&&sessao.user)||"-", obra:store&&store.obraId||"", periodo:store&&store.periodo||""});
+  localStorage.setItem("engecap_mo_logs", JSON.stringify(logs.slice(0,500)));
+  // atualiza a tela de admin se estiver aberta
+  if(typeof renderAdmin==="function" && document.getElementById("viewAdmin") && !document.getElementById("viewAdmin").classList.contains("hidden")){
+    try{ renderAdmin(); }catch(e){}
+  }
+  // tenta gravar na nuvem (não bloqueia)
+  if(sbOn() && sb){
+    sb.from("mo_logs").insert({
+      txt: txt,
+      who: (sessao&&sessao.user)||"-",
+      obra_id: store&&store.obraId||null,
+      periodo: store&&store.periodo||null,
+      created_at: new Date().toISOString()
+    }).then(function(){}).catch(function(){});
+  }
 }
 
 function criarUser(ev){
@@ -2700,7 +2729,7 @@ function abrirObra(id){
   if(store.obraId && store.obraId !== id){
     salvarDbNaObra();
   }
-  store.obraId = id;
+  store.obraId = id; addLog("Abriu obra "+id);
   if(!store.periodo) store.periodo = "2026-08";
   function segue(){
     carregarDbDaObra();
@@ -2715,7 +2744,7 @@ function abrirObra(id){
 
 function trocarPeriodo(k){
   if(store.periodo && store.periodo !== k) salvarDbNaObra();
-  store.periodo = k;
+  store.periodo = k; addLog("Trocou período para "+k);
   function segue(){
     carregarDbDaObra();
     render();
@@ -2793,7 +2822,14 @@ function salvarDbNaObra(){
     if(m.obraId && m.obraId !== store.obraId) return false;
     return true;
   }));
-  store.dados[chaveDados()] = { medicoes: medsLimpos, libs: libs, aprovacoes: db.aprovacoes||{} };
+  var key = chaveDados();
+  var prev = store.dados[key] || {};
+  store.dados[key] = {
+    medicoes: medsLimpos,
+    libs: libs,
+    aprovacoes: db.aprovacoes||{},
+    _updated_at: prev._updated_at || ""
+  };
   saveStore();
 }
 
