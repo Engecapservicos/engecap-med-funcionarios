@@ -57,6 +57,7 @@
         <button type="button" onclick="sincronizarNuvem()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-300 hover:bg-white/10">☁️ Sincronizar nuvem</button>
         <button onclick="resetar()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-400 hover:bg-white/10">♻️ Reset dados</button>
         <button onclick="sair()" id="btnSair" class="hidden w-full text-left px-3 py-2 rounded-xl text-sm bg-rose-500/80 hover:bg-rose-500">🚪 Sair</button>
+        <p class="text-[10px] text-slate-500 text-center pt-2">versão 2.1</p>
       </div>
     </aside>
     <div class="flex-1 max-w-6xl mx-auto py-6 px-4 w-full">
@@ -1394,11 +1395,11 @@ async function lancar(libId){
   var qi = parseFloat(document.getElementById("qtdInt").value)||0;
   var qv = parseFloat(document.getElementById("qtdVt").value)||0;
   function acharExtra(tipo){
-    return db.medicoes.find(function(m){ return m.chapa===funcionarioAtual.chapa && m.tipo===tipo && m.obraId===store.obraId; });
+    return db.medicoes.find(function(m){ return !m.deleted && m.chapa===funcionarioAtual.chapa && m.tipo===tipo && m.obraId===store.obraId; });
   }
   if(qi){
     var ja = acharExtra("integracao");
-    if(ja){ ja.qtd = qi; ja.vu = PRECOS_EXTRA.integracao; ja.valor = qi*PRECOS_EXTRA.integracao; }
+    if(ja){ ja.qtd = qi; ja.vu = PRECOS_EXTRA.integracao; ja.valor = qi*PRECOS_EXTRA.integracao; ja.updated_at = new Date().toISOString(); ja.deleted = false; }
     else db.medicoes.push({
       id: Date.now()+1,
       updated_at: new Date().toISOString(),
@@ -1418,7 +1419,7 @@ async function lancar(libId){
   }
   if(qv){
     var ja2 = acharExtra("vtSabado");
-    if(ja2){ ja2.qtd = qv; ja2.vu = PRECOS_EXTRA.vtSabado; ja2.valor = qv*PRECOS_EXTRA.vtSabado; }
+    if(ja2){ ja2.qtd = qv; ja2.vu = PRECOS_EXTRA.vtSabado; ja2.valor = qv*PRECOS_EXTRA.vtSabado; ja2.updated_at = new Date().toISOString(); ja2.deleted = false; }
     else db.medicoes.push({
       id: Date.now()+2,
       updated_at: new Date().toISOString(),
