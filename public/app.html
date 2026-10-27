@@ -117,10 +117,6 @@
             <button type="button" onclick="enviarFuncionariosNuvem()" class="mt-2 bg-blue-600 text-white text-sm px-3 py-2 rounded-lg">Enviar lista para a nuvem</button>
             <p id="csvMsg" class="text-xs text-slate-500 mt-2"></p>
             <p id="nuvemStatus" class="text-xs text-slate-400 mt-1"></p>
-            <hr class="my-3" />
-            <p class="text-xs text-slate-500 mb-2">Backup completo (obras, cadastros, lançamentos, aprovações)</p>
-            <button type="button" onclick="baixarBackup()" class="bg-emerald-600 text-white text-sm px-3 py-2 rounded-lg">⬇️ Baixar backup</button>
-            <p id="backupMsg" class="text-xs text-slate-500 mt-2"></p>
           </div>
           <div id="listaLogs" class="max-h-[420px] overflow-y-auto text-sm"></div>
         </section>
@@ -442,16 +438,12 @@ function save(){
   salvarDbNaObra();
 }
 function resetar(){
-  if(!sessao || sessao.role!=="admin") return alert("Só admin pode resetar.");
-  var conf = prompt("Digite RESETAR em maiúsculo para zerar os dados locais de teste:");
-  if(conf!=="RESETAR") return alert("Cancelado.");
-  if(!confirm("Tem certeza? Isso zera o local e pode afetar a sincronização.")) return;
+  if(!confirm("Zerar os dados de teste?")) return;
   localStorage.removeItem(KEY);
   db = JSON.parse(JSON.stringify(seed));
-  paiSel = db.pais[0] ? db.pais[0].id : null;
+  paiSel = db.pais[0].id;
   save();
   render();
-  if(typeof addLog==="function") addLog("RESET dados executado por admin");
 }
 
 
@@ -477,7 +469,7 @@ async function sincronizarNuvem(){
     await cloudPullStore();
     if(store.obraId) carregarDbDaObra();
     render();
-    alert("Sincronizado com a nuvem."); addLog("Sincronizou nuvem");
+    alert("Sincronizado com a nuvem.");
   }catch(e){
     alert("Falha na nuvem: "+e.message);
   }
@@ -544,18 +536,12 @@ async function cloudSaveFuncionarios(rows){
   var r = await sb.from("funcionarios").upsert(payload, { onConflict: "chapa" });
   if(r.error) throw new Error(r.error.message);
 }
-function medKey(m){
-  if(!m) return "";
-  // chave lógica estável: mesma medição mesmo com id diferente
-  return String(m.chapa||"")+"|"+String(m.tipo||"")+"|"+String(m.item||"")+"|"+String(m.libId||"")+"|"+String(m.obraId||"");
-}
 function dedupMedicoes(arr){
   var mapa = {};
   (arr||[]).forEach(function(m){
     if(!m) return;
-    var k = medKey(m);
-    var atual = mapa[k];
-    if(!atual || (m.updated_at||"") > (atual.updated_at||"")) mapa[k] = m;
+    var k = String(m.chapa||"")+"|"+String(m.tipo||"")+"|"+String(m.item||"")+"|"+String(m.libId||"")+"|"+String(m.obraId||"");
+    mapa[k] = m;
   });
   return Object.keys(mapa).map(function(k){ return mapa[k]; });
 }
@@ -563,9 +549,8 @@ function mergeMedicoes(local, remoto){
   var mapa = {};
   function add(m){
     if(!m) return;
-    var k = medKey(m);
-    var atual = mapa[k];
-    if(!atual || (m.updated_at||"") >= (atual.updated_at||"")) mapa[k] = m;
+    var k = String(m.id||"") || (String(m.chapa||"")+"|"+String(m.tipo||"")+"|"+String(m.item||"")+"|"+String(m.libId||""));
+    mapa[k] = m;
   }
   (remoto||[]).forEach(add);
   (local||[]).forEach(add);
@@ -590,15 +575,11 @@ async function cloudPullStore(){
     var libs = c.libs||{};
     var key = c.obra_id+"|"+c.periodo;
     var local = localDados[key] || {};
-    var remoto = dedupMedicoes(c.medicoes||[]);
-    var localMeds = local.medicoes || [];
-    var meds = mergeMedicoes(localMeds, remoto);
-    var remotoAtualizado = c.updated_at || "";
+    var meds = mergeMedicoes(local.medicoes, c.medicoes||[]);
     store.dados[key] = {
       medicoes: meds,
       libs: libs,
-      aprovacoes: c.aprovacoes || libs.__aprovacoes || local.aprovacoes || {},
-      _updated_at: remotoAtualizado || local._updated_at || ""
+      aprovacoes: c.aprovacoes || libs.__aprovacoes || local.aprovacoes || {}
     };
   });
   Object.keys(localDados).forEach(function(key){
@@ -620,18 +601,16 @@ var _lastMedCount = -1;
 async function pollPeriodoAtual(){
   if(!sbOn() || !store.obraId || !store.periodo) return;
   try{
-    var r = await sb.from("mo_periodo").select("medicoes,libs,aprovacoes,updated_at").eq("obra_id", store.obraId).eq("periodo", store.periodo).maybeSingle();
+    var r = await sb.from("mo_periodo").select("medicoes,libs,aprovacoes").eq("obra_id", store.obraId).eq("periodo", store.periodo).maybeSingle();
     if(r.error || !r.data) return;
     var key = store.obraId+"|"+store.periodo;
     var remoto = dedupMedicoes(r.data.medicoes || []);
     var local = ((store.dados||{})[key]||{}).medicoes || [];
-    var final = mergeMedicoes(local, remoto);
-    var mudou = JSON.stringify(final) !== JSON.stringify(local);
+    var mudou = JSON.stringify(remoto) !== JSON.stringify(local);
     if(mudou){
       store.dados = store.dados || {};
       store.dados[key] = store.dados[key] || { medicoes:[], libs:{} };
-      store.dados[key].medicoes = final;
-      if(r.data.updated_at) store.dados[key]._updated_at = r.data.updated_at;
+      store.dados[key].medicoes = remoto;
       if(r.data.libs) store.dados[key].libs = r.data.libs;
       if(r.data.aprovacoes) store.dados[key].aprovacoes = r.data.aprovacoes;
       localStorage.setItem(STORE_KEY, JSON.stringify(store));
@@ -684,32 +663,11 @@ async function cloudPushStore(){
     var d = store.dados[key];
     var libsPush = d.libs || {};
     libsPush.__aprovacoes = d.aprovacoes || libsPush.__aprovacoes || {};
-
-    // TRAVA ANTI-PERDA: puxa o remoto e faz merge antes de subir.
-    // Um aparelho com menos lançamentos nunca mais apaga os da nuvem.
-    var remotoRow = await sb.from("mo_periodo")
-      .select("medicoes")
-      .eq("obra_id", parts[0])
-      .eq("periodo", parts[1])
-      .maybeSingle();
-    var remotoMeds = (remotoRow.data && remotoRow.data.medicoes) || [];
-    var localMeds = d.medicoes || [];
-    var merged = mergeMedicoes(localMeds, remotoMeds);
-
-    // se o merge tiver menos itens que o remoto, não sobrescreve
-    if(merged.length < remotoMeds.length){
-      console.warn("Bloqueado push que reduziria lançamentos", key, "remoto:", remotoMeds.length, "merged:", merged.length);
-      merged = remotoMeds; // mantém o remoto
-    }
-
-    d.medicoes = merged;
-    var agora = new Date().toISOString();
     var r3 = await sb.from("mo_periodo").upsert({
-      obra_id:parts[0], periodo:parts[1], medicoes:merged, libs:libsPush,
-      updated_at: agora
+      obra_id:parts[0], periodo:parts[1], medicoes:d.medicoes||[], libs:libsPush,
+      updated_at: new Date().toISOString()
     });
-    d._updated_at = agora;
-    if(r3.error) throw new Error(r3.error.message || "Falha ao salvar período na nuvem");
+    if(r3.error) console.warn(r3.error);
   }
 }
 
@@ -792,7 +750,6 @@ async function fazerLogin(){
   sessao = { email:u.email|| (user+"@engecap.com"), role:u.role, user:u.user||user };
   localStorage.setItem("engecap_mo_sessao", JSON.stringify(sessao));
   if(typeof addLog==="function") addLog("Login "+sessao.user+" ("+sessao.role+")");
-  setTimeout(checarBackupDiario, 1500);
   aplicarAcesso();
   if(sessao.role==="apontador"){
     if(!store.obraId && store.obras && store.obras[0]) {
@@ -983,7 +940,6 @@ function preencherFuncoes(f){
   }
 }
 function salvarFilho(){
-  /* log on success below */
   if(!paiSel) return;
   var nome = document.getElementById("filhoNome").value.trim();
   var un = document.getElementById("filhoUn").value;
@@ -1285,7 +1241,7 @@ function saldosPorFuncao(f, lib){
 }
 
 
-async function lancarVales(){
+function lancarVales(){
   if(!sbOn()) return alert("Sem conexão com a nuvem. Não dá pra lançar.");
   if(!funcionarioAtual) return alert("Puxa a chapa primeiro");
   var qi = parseFloat(document.getElementById("qtdInt").value)||0;
@@ -1334,20 +1290,9 @@ async function lancarVales(){
     n++;
   }
   if(!n) return alert("Essa chapa já tem Integração e VT lançados");
-  salvarDbNaObra();
-  if(sbOn()){
-    try {
-      await cloudPushStore();
-      alert("Lançado e salvo na nuvem."); addLog("Lançou medição · chapa "+(funcionarioAtual&&funcionarioAtual.chapa||"")+" · "+(t&&t.filho&&t.filho.nome||"")+" · qtd "+q);
-    } catch(e){
-      alert("Erro ao salvar na nuvem: "+e.message);
-    }
-  } else {
-    alert("Sem conexão com a nuvem. Lançamento ficou só neste aparelho.");
-  }
-  render();
+  save(); render();
 }
-async function lancar(libId){
+function lancar(libId){
   if(!sbOn()) return alert("Sem conexão com a nuvem. Não dá pra lançar.");
   if(!funcionarioAtual) return alert("Puxa a chapa primeiro");
   var q = parseFloat(document.getElementById("med-"+libId).value);
@@ -1362,7 +1307,6 @@ async function lancar(libId){
   if(!vu) return alert("Essa função não recebe neste item");
   db.medicoes.push({
     id: Date.now(),
-    updated_at: new Date().toISOString(),
     obraId: store.obraId,
     apontador: userAtual(),
     libId: libId,
@@ -1388,7 +1332,6 @@ async function lancar(libId){
     if(ja){ ja.qtd = qi; ja.vu = PRECOS_EXTRA.integracao; ja.valor = qi*PRECOS_EXTRA.integracao; }
     else db.medicoes.push({
       id: Date.now()+1,
-      updated_at: new Date().toISOString(),
       obraId: store.obraId,
       tipo: "integracao",
       funcionario: funcionarioAtual.nome,
@@ -1408,7 +1351,6 @@ async function lancar(libId){
     if(ja2){ ja2.qtd = qv; ja2.vu = PRECOS_EXTRA.vtSabado; ja2.valor = qv*PRECOS_EXTRA.vtSabado; }
     else db.medicoes.push({
       id: Date.now()+2,
-      updated_at: new Date().toISOString(),
       obraId: store.obraId,
       tipo: "vtSabado",
       funcionario: funcionarioAtual.nome,
@@ -1424,18 +1366,7 @@ async function lancar(libId){
     document.getElementById("qtdVt").value = "";
   }
   document.getElementById("med-"+libId).value = "";
-  salvarDbNaObra();
-  if(sbOn()){
-    try {
-      await cloudPushStore();
-      alert("Lançado e salvo na nuvem.");
-    } catch(e){
-      alert("Erro ao salvar na nuvem: "+e.message);
-    }
-  } else {
-    alert("Sem conexão com a nuvem. Lançamento ficou só neste aparelho.");
-  }
-  render();
+  save(); render();
 }
 function editarMed(id){
   var m = db.medicoes.find(function(x){ return x.id===id; });
@@ -1462,25 +1393,21 @@ function editarMed(id){
     if(q>saldo) return alert("Estoura o teto do trecho. Máximo "+saldo);
     m.qtd = q;
     m.valor = q * (m.vu||0);
-    m.updated_at = new Date().toISOString();
   } else {
     m.qtd = q;
     if(m.tipo==="integracao") { m.vu = PRECOS_EXTRA.integracao; m.valor = q*m.vu; }
     if(m.tipo==="vtSabado") { m.vu = PRECOS_EXTRA.vtSabado; m.valor = q*m.vu; }
-    m.updated_at = new Date().toISOString();
   }
   save(); render();
 }
 async function excluirMed(id){
   if(!confirm("Excluir este lançamento?")) return;
-  var antes = db.medicoes.length;
   db.medicoes = db.medicoes.filter(function(m){ return m.id!==id; });
-  if(db.medicoes.length === antes) return alert("Lançamento não encontrado.");
   salvarDbNaObra();
   if(sbOn()){
     try {
       await cloudPushStore();
-      alert("Excluído e salvo na nuvem."); addLog("Excluiu lançamento id "+id);
+      alert("Excluído e salvo na nuvem.");
     } catch(e){
       alert("Erro ao salvar na nuvem: "+e.message);
     }
@@ -1626,10 +1553,7 @@ function excluirObra(id, ev){
   if(ev) ev.stopPropagation();
   var o = (store.obras||[]).find(function(x){ return x.id===id; });
   if(!o) return;
-  if(!sessao || sessao.role!=="admin") return alert("Só admin exclui obra.");
-  var conf = prompt("Para excluir a obra \""+o.nome+"\", digite o nome dela exatamente:");
-  if(!conf || conf.trim().toLowerCase()!==String(o.nome||"").trim().toLowerCase()) return alert("Nome não confere. Cancelado.");
-  if(!confirm("Confirma exclusão permanente da obra "+o.nome+" e de todas as medições?")) return;
+  if(!confirm("Excluir a obra "+o.nome+" e as medições dela?")) return;
   store.obras = store.obras.filter(function(x){ return x.id!==id; });
   Object.keys(store.dados||{}).forEach(function(k){
     if(k.indexOf(id+"|")===0) delete store.dados[k];
@@ -1928,21 +1852,12 @@ function seloEng(ap, chapa, tot){
     '</div>';
 }
 function htmlFolha(chapa, meds, ap){
-  // dedup pra não repetir Integração / VT na impressão
-  meds = dedupMedicoes(meds||[]);
   var o = dadosObraAtual();
   var nome = (meds[0]&&meds[0].funcionario)||"";
   var funcao = (meds[0]&&meds[0].funcao)||"";
   var serv = meds.filter(function(m){ return !m.tipo || (m.tipo!=="integracao" && m.tipo!=="vtSabado" && m.tipo!=="extra"); });
   var extras = meds.filter(function(m){ return m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra"; });
-  // garante 1 de cada tipo de vale
-  var extrasUnicos = {};
-  extras.forEach(function(m){
-    var k = m.tipo || m.item || "";
-    if(!extrasUnicos[k] || (m.updated_at||"") > (extrasUnicos[k].updated_at||"")) extrasUnicos[k] = m;
-  });
-  extras = Object.keys(extrasUnicos).map(function(k){ return extrasUnicos[k]; });
-  var tot = serv.concat(extras).reduce(function(a,m){ return a+Number(m.valor||0); },0);
+  var tot = meds.reduce(function(a,m){ return a+Number(m.valor||0); },0);
   var linhas = serv.map(function(m,i){
     return "<tr><td>"+(i+1)+"</td><td>"+(m.pai||"")+"</td><td>"+(m.item||"")+"</td><td>"+(m.trecho||"-")+"</td><td>"+(m.qtd||"")+" "+(m.un||"")+"</td><td>"+money(m.vu||0)+"</td><td>"+money(m.valor)+"</td></tr>";
   }).join("");
@@ -2018,7 +1933,6 @@ function carimboAprovacao(){
   };
 }
 function aprovarMedicao(chapa, silencioso){
-  addLog("Aprovou medição chapa "+chapa);
   if(!podeAprovar()) return alert("Só engenheiro/admin aprova");
   db.aprovacoes = db.aprovacoes || {};
   db.aprovacoes[String(chapa)] = carimboAprovacao();
@@ -2096,7 +2010,7 @@ function imprimirFolha(chapa){
   abrirImpressao(htmlFolha(chapa, meds, ap));
 }
 function imprimirTodasFolhas(){
-  var meds = db.medicoes||[];
+  var meds = medicoesDaObra();
   var chapas = [];
   meds.forEach(function(m){
     var c = String(m.chapa||"");
@@ -2521,22 +2435,8 @@ function loadLogs(){
 }
 function addLog(txt){
   var logs = loadLogs();
-  logs.unshift({t:new Date().toLocaleString("pt-BR"), txt:txt, who:(sessao&&sessao.user)||"-", obra:store&&store.obraId||"", periodo:store&&store.periodo||""});
-  localStorage.setItem("engecap_mo_logs", JSON.stringify(logs.slice(0,500)));
-  // atualiza a tela de admin se estiver aberta
-  if(typeof renderAdmin==="function" && document.getElementById("viewAdmin") && !document.getElementById("viewAdmin").classList.contains("hidden")){
-    try{ renderAdmin(); }catch(e){}
-  }
-  // tenta gravar na nuvem (não bloqueia)
-  if(sbOn() && sb){
-    sb.from("mo_logs").insert({
-      txt: txt,
-      who: (sessao&&sessao.user)||"-",
-      obra_id: store&&store.obraId||null,
-      periodo: store&&store.periodo||null,
-      created_at: new Date().toISOString()
-    }).then(function(){}).catch(function(){});
-  }
+  logs.unshift({t:new Date().toLocaleString("pt-BR"), txt:txt, who:(sessao&&sessao.user)||"-"});
+  localStorage.setItem("engecap_mo_logs", JSON.stringify(logs.slice(0,200)));
 }
 
 function criarUser(ev){
@@ -2604,49 +2504,6 @@ function excluirUser(id){
   addLog("Excluiu usuário "+u.user);
   renderAdmin();
 }
-
-
-function checarBackupDiario(){
-  if(!sessao || sessao.role!=="admin") return;
-  var last = localStorage.getItem("engecap_mo_last_backup");
-  var agora = Date.now();
-  var umDia = 24*60*60*1000;
-  if(!last || (agora - new Date(last).getTime()) > umDia){
-    if(confirm("Faz mais de 24h que não baixa backup. Quer baixar agora?")){
-      baixarBackup();
-    }
-  }
-}
-
-function baixarBackup(){
-  try{
-    salvarDbNaObra();
-    var payload = {
-      exportadoEm: new Date().toISOString(),
-      obras: store.obras || [],
-      cadastro: store.cadastro || {},
-      dados: store.dados || {},
-      funcionarios: (typeof FUNCIONARIOS!=="undefined" ? FUNCIONARIOS : []),
-      periodoAtual: store.periodo || "",
-      obraAtual: store.obraId || ""
-    };
-    var blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
-    var a = document.createElement("a");
-    var nome = "backup-engecap-mo-" + new Date().toISOString().slice(0,10) + ".json";
-    a.href = URL.createObjectURL(blob);
-    a.download = nome;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    var msg = document.getElementById("backupMsg");
-    if(msg) msg.textContent = "Backup baixado: " + nome;
-    localStorage.setItem("engecap_mo_last_backup", new Date().toISOString());
-    if(typeof addLog==="function") addLog("Baixou backup " + nome);
-  }catch(e){
-    alert("Erro ao gerar backup: " + e.message);
-  }
-}
-
 function renderAdmin(){
   var box = document.getElementById("listaUsers");
   if(!box) return;
@@ -2793,7 +2650,7 @@ function abrirObra(id){
   if(store.obraId && store.obraId !== id){
     salvarDbNaObra();
   }
-  store.obraId = id; addLog("Abriu obra "+id);
+  store.obraId = id;
   if(!store.periodo) store.periodo = "2026-08";
   function segue(){
     carregarDbDaObra();
@@ -2808,7 +2665,7 @@ function abrirObra(id){
 
 function trocarPeriodo(k){
   if(store.periodo && store.periodo !== k) salvarDbNaObra();
-  store.periodo = k; addLog("Trocou período para "+k);
+  store.periodo = k;
   function segue(){
     carregarDbDaObra();
     render();
@@ -2886,14 +2743,7 @@ function salvarDbNaObra(){
     if(m.obraId && m.obraId !== store.obraId) return false;
     return true;
   }));
-  var key = chaveDados();
-  var prev = store.dados[key] || {};
-  store.dados[key] = {
-    medicoes: medsLimpos,
-    libs: libs,
-    aprovacoes: db.aprovacoes||{},
-    _updated_at: prev._updated_at || ""
-  };
+  store.dados[chaveDados()] = { medicoes: medsLimpos, libs: libs, aprovacoes: db.aprovacoes||{} };
   saveStore();
 }
 
