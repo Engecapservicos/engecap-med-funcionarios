@@ -697,8 +697,15 @@ async function cloudPushStore(){
       .maybeSingle();
     var remotoMeds = (remotoRow.data && remotoRow.data.medicoes) || [];
     var localMeds = d.medicoes || [];
+    var localAtivos = medicoesAtivas(localMeds);
+    var remotoAtivos = medicoesAtivas(remotoMeds);
+    // TRAVA: local vazio + remoto com dados → não sobe (evita apagar tudo)
+    if(localAtivos.length === 0 && remotoAtivos.length > 0){
+      console.warn("Push bloqueado: local vazio e nuvem tem lançamentos", key);
+      d.medicoes = remotoMeds;
+      continue;
+    }
     var merged = mergeMedicoes(localMeds, remotoMeds);
-    // trava de quantidade removida: última alteração (updated_at) vence, inclusive exclusão
     d.medicoes = merged;
     var agora = new Date().toISOString();
     var r3 = await sb.from("mo_periodo").upsert({
