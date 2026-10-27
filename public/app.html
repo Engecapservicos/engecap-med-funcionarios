@@ -571,6 +571,9 @@ function mergeMedicoes(local, remoto){
   (local||[]).forEach(add);
   return Object.keys(mapa).map(function(k){ return mapa[k]; });
 }
+function medicoesAtivas(arr){
+  return (arr||[]).filter(function(m){ return m && !m.deleted; });
+}
 async function cloudPullStore(){
   if(!sbOn()) return;
   var localDados = JSON.parse(JSON.stringify(store.dados||{}));
@@ -695,13 +698,7 @@ async function cloudPushStore(){
     var remotoMeds = (remotoRow.data && remotoRow.data.medicoes) || [];
     var localMeds = d.medicoes || [];
     var merged = mergeMedicoes(localMeds, remotoMeds);
-
-    // se o merge tiver menos itens que o remoto, não sobrescreve
-    if(merged.length < remotoMeds.length){
-      console.warn("Bloqueado push que reduziria lançamentos", key, "remoto:", remotoMeds.length, "merged:", merged.length);
-      merged = remotoMeds; // mantém o remoto
-    }
-
+    // trava de quantidade removida: última alteração (updated_at) vence, inclusive exclusão
     d.medicoes = merged;
     var agora = new Date().toISOString();
     var r3 = await sb.from("mo_periodo").upsert({
@@ -1473,9 +1470,11 @@ function editarMed(id){
 }
 async function excluirMed(id){
   if(!confirm("Excluir este lançamento?")) return;
-  var antes = db.medicoes.length;
-  db.medicoes = db.medicoes.filter(function(m){ return m.id!==id; });
-  if(db.medicoes.length === antes) return alert("Lançamento não encontrado.");
+  var m = (db.medicoes||[]).find(function(x){ return x.id===id; });
+  if(!m) return alert("Lançamento não encontrado.");
+  m.deleted = true;
+  m.updated_at = new Date().toISOString();
+  m.deleted_by = (sessao&&sessao.user)||"";
   salvarDbNaObra();
   if(sbOn()){
     try {
@@ -1815,7 +1814,7 @@ function medPertenceObra(m){
   return itemExisteNaObra(m);
 }
 function medicoesDaObra(){
-  return (db.medicoes||[]).filter(medPertenceObra);
+  return medicoesAtivas(db.medicoes||[]).filter(medPertenceObra);
 }
 function renderLancamento(){
   mostrarPeriodoServente();
