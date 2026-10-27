@@ -68,7 +68,7 @@
     <div id="viewHome" class="hidden">
       <div class="flex justify-between items-center mb-4">
         <h2 class="font-semibold">Minhas obras</h2>
-        <button id="btnNovaObra" onclick="novaObra()" class="bg-blue-600 text-white text-sm px-3 py-2 rounded-lg">+ Nova obra</button>
+        <button id="btnNovaObra" onclick="novaObra()" class="bg-slate-600 text-white text-sm px-3 py-2 rounded-lg">+ Nova obra</button>
       </div>
       <div id="listaObras" class="grid md:grid-cols-3 gap-4"></div>
     </div>
@@ -81,7 +81,7 @@
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 text-sm">
           <div class="bg-slate-50 rounded-xl p-3"><p class="text-[11px] text-slate-400">TAREFA PREVISTA (CADASTRO)</p><p id="prevTarefa" class="text-xl font-bold">R$ 0,00</p></div>
           <div class="bg-amber-50 rounded-xl p-3"><p class="text-[11px] text-amber-600">SALÁRIO C/ ENCARGOS (d)</p><p id="prevEnc" class="text-xl font-bold text-amber-800">R$ 0,00</p></div>
-          <div class="bg-blue-50 rounded-xl p-3"><p class="text-[11px] text-blue-500">CUSTO TOTAL (d + prêmio)</p><p id="prevCustoMes" class="text-xl font-bold text-blue-800">R$ 0,00</p></div>
+          <div class="bg-slate-100 rounded-xl p-3"><p class="text-[11px] text-slate-500">CUSTO TOTAL (d + prêmio)</p><p id="prevCustoMes" class="text-xl font-bold text-slate-800">R$ 0,00</p></div>
           <div class="bg-slate-800 text-white rounded-xl p-3"><p class="text-[11px] text-slate-300">GASTO REAL PREVISTO</p><p id="prevGastoMes" class="text-xl font-bold">R$ 0,00</p></div>
         </div>
       </section>
@@ -118,7 +118,7 @@
             <hr class="my-3" />
             <p class="text-xs text-slate-500 mb-2">CSV funcionários (chapa;nome;funcao)</p>
             <input type="file" accept=".csv,text/csv" onchange="subirCsv(event)" class="text-sm" />
-            <button type="button" onclick="enviarFuncionariosNuvem()" class="mt-2 bg-blue-600 text-white text-sm px-3 py-2 rounded-lg">Enviar lista para a nuvem</button>
+            <button type="button" onclick="enviarFuncionariosNuvem()" class="mt-2 bg-slate-600 text-white text-sm px-3 py-2 rounded-lg">Enviar lista para a nuvem</button>
             <p id="csvMsg" class="text-xs text-slate-500 mt-2"></p>
             <p id="nuvemStatus" class="text-xs text-slate-400 mt-1"></p>
           </div>
@@ -149,7 +149,7 @@
           <p class="text-[11px] text-slate-500 mb-2">Quem for vinculado vê esta obra no menu Obras e lança medição nela. Pode ser mais de um.</p>
           <div class="flex gap-2 mb-2">
             <input id="obraAdmUser" placeholder="usuário do ADM (ex: joao)" class="border rounded-lg px-3 py-2 text-sm flex-1" />
-            <button type="button" onclick="vincularAdmObra()" class="bg-blue-600 text-white text-sm px-3 py-2 rounded-lg">Vincular</button>
+            <button type="button" onclick="vincularAdmObra()" class="bg-slate-600 text-white text-sm px-3 py-2 rounded-lg">Vincular</button>
           </div>
           <div id="listaAdmsObra" class="flex flex-wrap gap-2 text-sm"></div>
           <p class="text-sm font-medium mb-1 mt-4">Engenheiros desta obra</p>
@@ -217,7 +217,7 @@
               </div>
               <div class="flex gap-2">
                 <button id="btnCancelarFilho" onclick="cancelarEdicaoFilho()" class="hidden text-sm border px-3 py-2 rounded-lg">Cancelar</button>
-                <button id="btnFilho" onclick="salvarFilho()" class="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg">Adicionar filho neste pai</button>
+                <button id="btnFilho" onclick="salvarFilho()" class="bg-slate-600 text-white text-sm px-4 py-2 rounded-lg">Adicionar filho neste pai</button>
               </div>
             </div>
           </div>
@@ -226,7 +226,7 @@
       </div>
       <div class="mt-5 bg-white rounded-2xl border p-4 flex justify-between">
         <span class="text-sm text-slate-500">Total previsto a pagar</span>
-        <span id="total" class="font-bold text-blue-700">R$ 0,00</span>
+        <span id="total" class="font-bold text-slate-700">R$ 0,00</span>
       </div>
     </div>
 
@@ -322,8 +322,8 @@
             </div>
             <button onclick="buscarChapaResumo()" class="bg-slate-800 text-white text-sm px-3 py-2 rounded-lg">Pesquisar</button>
             <button onclick="limparBuscaChapa()" class="border text-sm px-3 py-2 rounded-lg">Limpar</button>
-            <button type="button" id="btnAprovarSel" onclick="aprovarSelecionadas()" class="bg-blue-600 text-white text-sm px-3 py-2 rounded-lg">Aprovar selecionadas</button>
-            <button type="button" id="btnAprovarTodas" onclick="aprovarTodasPendentes()" class="border border-blue-600 text-blue-700 text-sm px-3 py-2 rounded-lg">Aprovar todas pendentes</button>
+            <button type="button" id="btnAprovarSel" onclick="aprovarSelecionadas()" class="bg-slate-600 text-white text-sm px-3 py-2 rounded-lg">Aprovar selecionadas</button>
+            <button type="button" id="btnAprovarTodas" onclick="aprovarTodasPendentes()" class="border border-slate-600 text-slate-700 text-sm px-3 py-2 rounded-lg">Aprovar todas pendentes</button>
           </div>
         </div>
         <p id="buscaChapaInfo" class="text-xs text-slate-500 mb-3 hidden"></p>
@@ -333,9 +333,9 @@
             <p class="text-[11px] uppercase tracking-wide text-slate-400">Pessoas</p>
             <p id="fecQtdFunc" class="text-xl font-bold">0</p>
           </div>
-          <div class="bg-blue-50 rounded-xl p-3">
-            <p class="text-[11px] uppercase tracking-wide text-blue-400">Salário tarefa</p>
-            <p id="fecTarefa" class="text-xl font-bold text-blue-700">R$ 0,00</p>
+          <div class="bg-slate-100 rounded-xl p-3">
+            <p class="text-[11px] uppercase tracking-wide text-slate-400">Salário tarefa</p>
+            <p id="fecTarefa" class="text-xl font-bold text-slate-700">R$ 0,00</p>
           </div>
           <div class="bg-emerald-50 rounded-xl p-3">
             <p class="text-[11px] uppercase tracking-wide text-emerald-500">Prêmio</p>
@@ -681,9 +681,16 @@ async function cloudPushStore(){
     if(r2.error) console.warn(r2.error);
   }
   var ks = Object.keys(store.dados||{});
+  var obrasValidas = {};
+  (store.obras||[]).forEach(function(o){ if(o && o.id) obrasValidas[o.id] = true; });
   for(var k=0;k<ks.length;k++){
     var key = ks[k];
     var parts = key.split("|");
+    var obraIdPush = parts[0];
+    if(!obrasValidas[obraIdPush]){
+      console.warn("Push ignorado: obra não existe em mo_obras", key);
+      continue;
+    }
     var d = store.dados[key];
     var libsPush = d.libs || {};
     libsPush.__aprovacoes = d.aprovacoes || libsPush.__aprovacoes || {};
@@ -910,7 +917,7 @@ function ir(v){
     var el = document.getElementById(map[name]);
     if(!el) return;
     var icons = {home:"🏗️ Obras", cadastro:"📋 Cadastro", liberacao:"🔓 Liberação", lancamento:"✍️ Lançar medição", fechar:"📊 Resumo", saldo:"📦 Controle de saldo", previsao:"📈 Previsão", admin:"🛡️ Admin"};
-    el.className = "w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium " + (v===name ? "bg-blue-500 text-white" : "hover:bg-white/10 text-white");
+    el.className = "w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium " + (v===name ? "bg-slate-500 text-white" : "hover:bg-white/10 text-white");
     if(icons[name]) el.textContent = icons[name];
   });
   render();
@@ -1226,6 +1233,7 @@ function todasMedicoesObra(){
 }
 function medidoNoFilho(filhoId, funcao){
   return todasMedicoesObra().filter(function(m){
+    if(m.deleted) return false;
     if(m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra") return false;
     if(funcao && !mesmaFuncao(m.funcao, funcao)) return false;
     var f = (db.filhos||[]).find(function(x){ return String(x.id)===String(filhoId); });
@@ -1259,6 +1267,7 @@ function medidoNoTrecho(libId, funcao, filho){
     lib = pack.find(function(l){ return String(l.id)===String(libId); });
   }
   return todasMedicoesObra().filter(function(m){
+    if(m.deleted) return false;
     if(m.tipo==="integracao" || m.tipo==="vtSabado") return false;
     if(funcao && !mesmaFuncao(m.funcao, funcao)) return false;
     if(filho && !mesmoTipoHora(filho, m)) return false;
@@ -1527,7 +1536,7 @@ function renderEngsObra(){
   var engs = (o && o.engs) ? o.engs : [];
   box.innerHTML = engs.length ? engs.map(function(a){
     var key = String(a).replace(/[^a-zA-Z0-9_-]/g,"");
-    return '<span class="inline-flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-full px-3 py-1">'+a+' <button type="button" class="eng-x text-slate-400 hover:text-red-600" data-eng="'+key+'">x</button></span>';
+    return '<span class="inline-flex items-center gap-2 bg-slate-100 border border-slate-300 rounded-full px-3 py-1">'+a+' <button type="button" class="eng-x text-slate-400 hover:text-red-600" data-eng="'+key+'">x</button></span>';
   }).join("") : '<span class="text-xs text-slate-400">Nenhum engenheiro extra. Com a lista vazia, todo engenheiro vê a obra.</span>';
   box.querySelectorAll(".eng-x").forEach(function(btn){
     btn.onclick = function(){ desvincularEngObra(btn.getAttribute("data-eng")); };
@@ -1661,11 +1670,11 @@ function renderCadastro(){
     lista.forEach(function(f){ porUn[f.un]=(porUn[f.un]||0)+f.qtd; });
     var qtdTxt = Object.keys(porUn).map(function(u){ return porUn[u].toLocaleString("pt-BR")+" "+u; }).join(" + ") || "sem qtde";
     var ativo = p.id===paiSel;
-    return '<div class="flex items-center gap-1 rounded-lg '+(ativo?"bg-blue-600 text-white":"hover:bg-slate-50")+'">'+
+    return '<div class="flex items-center gap-1 rounded-lg '+(ativo?"bg-slate-600 text-white":"hover:bg-slate-50")+'">'+
       '<button onclick="paiSel='+p.id+';render()" class="flex-1 text-left px-3 py-2 text-sm">'+
         '<span class="block font-medium">'+p.nome+'</span>'+
-        '<span class="block text-[11px] '+(ativo?"text-blue-100":"text-slate-500")+'">'+money(valor)+'</span>'+
-        '<span class="block text-[11px] '+(ativo?"text-blue-100":"text-slate-400")+'">'+qtdTxt+'</span>'+
+        '<span class="block text-[11px] '+(ativo?"text-slate-200":"text-slate-500")+'">'+money(valor)+'</span>'+
+        '<span class="block text-[11px] '+(ativo?"text-slate-200":"text-slate-400")+'">'+qtdTxt+'</span>'+
       '</button>'+
       '<button onclick="editarPai('+p.id+',event)" class="px-2">✎</button>'+
       '<button onclick="excluirPai('+p.id+',event)" class="px-2">✕</button></div>';
@@ -1686,7 +1695,7 @@ function renderCadastro(){
         '<p class="font-medium">'+f.nome+'</p>'+
         '<p class="text-xs text-slate-500">'+f.qtd.toLocaleString("pt-BR")+" "+f.un+" · liberado "+somaLib(f)+" "+f.un+'</p></div>'+
         '<div class="text-right"><p class="text-sm font-semibold">'+money(tot(f.funcoes,f.qtd))+'</p>'+
-        '<button onclick="editarFilho('+f.id+')" class="text-[11px] text-blue-600 mr-2">editar</button>'+
+        '<button onclick="editarFilho('+f.id+')" class="text-[11px] text-slate-600 mr-2">editar</button>'+
         '<button onclick="removerFilho('+f.id+')" class="text-[11px] text-slate-400">excluir</button></div></div>'+
         '<div class="flex flex-wrap gap-1 mt-2">'+ativas(f.funcoes).map(function(x){ return '<span class="text-[11px] bg-slate-50 border rounded-full px-2 py-1">'+x[0]+" "+money(x[1])+"/"+f.un+"</span>"; }).join("")+"</div></div>";
     }).join("");
@@ -1762,7 +1771,7 @@ function renderLiberacao(){
             var pagoL = medidoMaxLib(f, l);
             var restoL = Math.max(0, Number(l.qtd||0)-pagoL);
             var acoes = '<span>'+
-              (desteMes?'<button onclick="editarLib('+f.id+','+l.id+')" class="text-blue-600 mr-2">editar</button><button onclick="excluirLib('+f.id+','+l.id+')" class="text-slate-400 mr-2">excluir</button>':'<span class="text-slate-400 mr-2">mês ant.</span>')+
+              (desteMes?'<button onclick="editarLib('+f.id+','+l.id+')" class="text-slate-600 mr-2">editar</button><button onclick="excluirLib('+f.id+','+l.id+')" class="text-slate-400 mr-2">excluir</button>':'<span class="text-slate-400 mr-2">mês ant.</span>')+
               (restoL>0.0001 && podeAprovar()?'<button onclick="devolverRestante('+f.id+','+l.id+')" class="text-amber-700 font-medium">devolver '+qtdFmt(restoL)+'</button>':'')+
               '</span>';
             return '<div class="flex items-center justify-between text-xs bg-slate-50 border rounded-lg px-3 py-2 mt-1"><span><b>'+l.trecho+"</b> · "+qtdFmt(l.qtd)+" "+f.un+" · pago "+qtdFmt(pagoL)+tag+'</span>'+acoes+'</div>';
@@ -1777,13 +1786,13 @@ function renderLiberacao(){
                 ? '<span class="text-[11px] text-slate-400 shrink-0">formulário aberto</span>'
                 : '<div class="flex gap-2 shrink-0">'+
                   (podeAprovar()?'<button type="button" onclick="devolverRestosFilho('+f.id+')" class="text-xs font-medium border border-amber-400 text-amber-800 bg-amber-50 px-3 py-1.5 rounded-lg">Devolver restos</button>':'')+
-                  '<button type="button" onclick="window._formExp=window._formExp||{};window._formExp['+p.id+']=true;renderLiberacao();setTimeout(function(){var el=document.getElementById(\'trecho-'+f.id+'\');if(el)el.focus();},50)" class="inline-flex items-center gap-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg shadow-sm">Liberar <span aria-hidden="true">→</span></button></div>')+
+                  '<button type="button" onclick="window._formExp=window._formExp||{};window._formExp['+p.id+']=true;renderLiberacao();setTimeout(function(){var el=document.getElementById(\'trecho-'+f.id+'\');if(el)el.focus();},50)" class="inline-flex items-center gap-1.5 text-xs font-medium bg-slate-600 hover:bg-slate-700 text-white px-3 py-1.5 rounded-lg shadow-sm">Liberar <span aria-hidden="true">→</span></button></div>')+
             '</div>'+
-            '<div class="h-2 bg-slate-100 rounded-full mt-2.5"><div class="h-full bg-blue-600 rounded-full" style="width:'+pct+'%"></div></div>';
+            '<div class="h-2 bg-slate-100 rounded-full mt-2.5"><div class="h-full bg-slate-600 rounded-full" style="width:'+pct+'%"></div></div>';
 var form = aberto ? (
             '<div class="mt-3">'+
               '<div class="grid md:grid-cols-3 gap-2 mb-2"><input id="trecho-'+f.id+'" placeholder="Ex: Trecho B" class="border rounded-lg px-3 py-2 text-sm md:col-span-2" /><input id="lib-'+f.id+'" type="number" placeholder="Qtde" class="border rounded-lg px-3 py-2 text-sm" /></div>'+
-              '<button type="button" onclick="liberar('+f.id+');return false" class="bg-blue-600 text-white text-sm px-3 py-2 rounded-lg mb-2">Liberar trecho</button>'+
+              '<button type="button" onclick="liberar('+f.id+');return false" class="bg-slate-600 text-white text-sm px-3 py-2 rounded-lg mb-2">Liberar trecho</button>'+
               (linhas || '<p class="text-[11px] text-slate-400">Nenhum trecho liberado.</p>')+
             '</div>'
           ) : (linhas ? '<div class="mt-2 space-y-1">'+linhas+'</div>' : '');
@@ -1893,7 +1902,7 @@ function renderLancamento(){
         else if(m.tipo==="extra") det = "Integração "+(m.integracao||0)+" · VT sábado "+(m.vtSabado||0);
         else det = m.pai+" · "+m.item+" · "+m.trecho+" · "+m.qtd;
         if(m.periodoTrabalho) det += " · trabalho "+labelPeriodoTrabalho(m.periodoTrabalho);
-        return '<div class="flex justify-between gap-3 py-2 border-t text-sm"><div><p>'+det+'</p></div><div class="text-right"><p>'+money(m.valor)+'</p><button onclick="editarMed('+m.id+')" class="text-[11px] text-blue-600 mr-2">✎ editar</button><button onclick="excluirMed('+m.id+')" class="text-[11px] text-slate-400">excluir</button></div></div>';
+        return '<div class="flex justify-between gap-3 py-2 border-t text-sm"><div><p>'+det+'</p></div><div class="text-right"><p>'+money(m.valor)+'</p><button onclick="editarMed('+m.id+')" class="text-[11px] text-slate-600 mr-2">✎ editar</button><button onclick="excluirMed('+m.id+')" class="text-[11px] text-slate-400">excluir</button></div></div>';
       }).join("");
       return '<div class="border-t first:border-0">'+
         '<button onclick="toggleFunc(\''+sid+'\')" class="w-full flex justify-between items-center px-3 py-3 text-left hover:bg-slate-50">'+
@@ -2274,7 +2283,7 @@ function renderFechar(){
   var chips = '<button onclick="filtrarResumo(\'\')" class="text-xs px-3 py-1.5 rounded-full border '+(filtro===""?"bg-slate-800 text-white border-slate-800":"bg-white text-slate-600")+'">Todas</button>';
   funcoes.forEach(function(fn){
     var n = Object.keys(porFuncao[fn]).length;
-    chips += '<button onclick="filtrarResumo(\''+fn+'\')" class="text-xs px-3 py-1.5 rounded-full border '+(filtro===fn?"bg-blue-600 text-white border-blue-600":"bg-white text-slate-600")+'">'+fn+' · '+n+'</button>';
+    chips += '<button onclick="filtrarResumo(\''+fn+'\')" class="text-xs px-3 py-1.5 rounded-full border '+(filtro===fn?"bg-slate-600 text-white border-slate-600":"bg-white text-slate-600")+'">'+fn+' · '+n+'</button>';
   });
   document.getElementById("fecFiltros").innerHTML = chips;
   var btAll = document.getElementById("btnAprovarTodas");
@@ -2305,7 +2314,7 @@ function renderFechar(){
       var btAprov = podeAprovar()
         ? (ap
             ? '<button onclick="event.stopPropagation();reprovarMedicao(\''+g.chapa+'\')" class="text-xs px-2 py-1 rounded bg-emerald-600 text-white">Aprovada · desfazer</button>'
-            : '<button onclick="event.stopPropagation();aprovarMedicao(\''+g.chapa+'\')" class="text-xs px-2 py-1 rounded bg-blue-600 text-white">Aprovar medição</button>')
+            : '<button onclick="event.stopPropagation();aprovarMedicao(\''+g.chapa+'\')" class="text-xs px-2 py-1 rounded bg-slate-600 text-white">Aprovar medição</button>')
         : (ap ? '<span class="text-xs text-emerald-700 font-medium">Aprovada</span>' : '<span class="text-xs text-amber-600">Aguardando engenharia</span>');
       var porObra = {};
       g.itens.forEach(function(m){
@@ -2347,7 +2356,7 @@ function renderFechar(){
           })()+'</p></div>'+
             '<div class="col-span-4 md:col-span-2 text-sm"><p class="text-[10px] text-slate-400">Tarefa</p><p class="font-semibold">'+money(c.tarefa)+'</p></div>'+
             '<div class="col-span-4 md:col-span-2 text-sm"><p class="text-[10px] text-emerald-600">Prêmio</p><p class="font-semibold text-emerald-700">'+money(c.premio)+'</p></div>'+
-            '<div class="col-span-4 md:col-span-2 text-sm md:text-right"><p class="text-[10px] text-slate-400">Custo M.O.</p><p class="font-semibold text-blue-700">'+money(c.custo)+'</p></div>'+
+            '<div class="col-span-4 md:col-span-2 text-sm md:text-right"><p class="text-[10px] text-slate-400">Custo M.O.</p><p class="font-semibold text-slate-700">'+money(c.custo)+'</p></div>'+
             '<div class="col-span-12 md:col-span-1 text-right">'+btAprov+'</div>'+
           '</div></button>'+
         '<div id="'+sid+'" class="hidden px-4 pb-4 bg-slate-50 border-t">'+
@@ -2359,7 +2368,7 @@ function renderFechar(){
             '<div class="bg-white border rounded-lg p-2"><p class="text-slate-400">Prêmio (h)</p><p class="font-semibold text-emerald-700">'+money(c.premio)+'</p></div>'+
             '<div class="bg-white border rounded-lg p-2"><p class="text-slate-400">Adiantamento (40% d)</p><p class="font-semibold">'+money(c.vale)+'</p></div>'+
             '<div class="bg-white border rounded-lg p-2"><p class="text-slate-400">Folha de pagamento (e − adiant.)</p><p class="font-semibold">'+money(c.folha)+'</p></div>'+
-            '<div class="bg-white border rounded-lg p-2"><p class="text-slate-400">Custo total M.O.</p><p class="font-semibold text-blue-700">'+money(c.custo)+'</p></div>'+
+            '<div class="bg-white border rounded-lg p-2"><p class="text-slate-400">Custo total M.O.</p><p class="font-semibold text-slate-700">'+money(c.custo)+'</p></div>'+
           '</div></div></div>';
     }).join("");
 
@@ -2368,7 +2377,7 @@ function renderFechar(){
         '<div><p class="text-[11px] uppercase tracking-wide text-slate-300">Função</p><h3 class="font-bold text-lg">'+fn+'</h3><p class="text-[11px] text-slate-300">'+keys.length+' funcionário(s)</p></div>'+
         (podeAprovar()?'<div class="flex gap-2">'+
           '<button type="button" onclick="marcarGrupo(\''+String(fn).replace(/'/g,"")+'\',true)" class="text-xs bg-white/15 text-white px-3 py-1.5 rounded-lg">Marcar '+fn+'</button>'+
-          '<button type="button" onclick="aprovarFuncao(\''+String(fn).replace(/'/g,"")+'\')" class="text-xs bg-blue-500 hover:bg-blue-400 text-white px-3 py-1.5 rounded-lg">Aprovar todos '+fn+'</button></div>':'')+
+          '<button type="button" onclick="aprovarFuncao(\''+String(fn).replace(/'/g,"")+'\')" class="text-xs bg-slate-500 hover:bg-slate-400 text-white px-3 py-1.5 rounded-lg">Aprovar todos '+fn+'</button></div>':'')+
         '<div class="flex gap-6 text-right text-sm">'+
           '<div><p class="text-[10px] text-slate-300">Tarefa</p><p class="font-semibold">'+money(subT)+'</p></div>'+
           '<div><p class="text-[10px] text-emerald-300">Prêmio</p><p class="font-semibold text-emerald-300">'+money(subP)+'</p></div>'+
@@ -2789,7 +2798,7 @@ function renderHome(){
     return;
   }
   box.innerHTML = obras.map(function(o){
-    return '<div class="bg-white rounded-2xl border-2 border-slate-200 p-5 hover:border-blue-400 relative">'+
+    return '<div class="bg-white rounded-2xl border-2 border-slate-200 p-5 hover:border-slate-400 relative">'+
       ((sessao && sessao.role==="admin")?'<button onclick="excluirObra(\''+o.id+'\',event)" class="absolute top-3 right-3 text-xs text-slate-400 hover:text-red-600">excluir</button>':'')+
       '<button onclick="abrirObra(\''+o.id+'\')" class="text-left w-full">'+
       '<p class="text-3xl mb-2">🏗️</p><p class="font-bold">'+o.nome+'</p>'+
@@ -3013,7 +3022,7 @@ function renderSaldo(){
         var medido = medidoNoFilho(f.id, x[0]);
         var saldo = teto - medido;
         var pct = teto ? Math.max(0, Math.min(100, Math.round(medido/teto*100))) : 0;
-        var cor = pct>=100 ? "bg-emerald-600" : pct>0 ? "bg-blue-600" : "bg-slate-300";
+        var cor = pct>=100 ? "bg-emerald-600" : pct>0 ? "bg-slate-600" : "bg-slate-300";
         totPrev += teto*vu;
         totPago += medido*vu;
         if(medido>maxMed) maxMed = medido;
