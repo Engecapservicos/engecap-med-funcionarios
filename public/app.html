@@ -57,7 +57,7 @@
         <button type="button" onclick="sincronizarNuvem()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-300 hover:bg-white/10">☁️ Sincronizar nuvem</button>
         <button onclick="resetar()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-400 hover:bg-white/10">♻️ Reset dados</button>
         <button onclick="sair()" id="btnSair" class="hidden w-full text-left px-3 py-2 rounded-xl text-sm bg-rose-500/80 hover:bg-rose-500">🚪 Sair</button>
-        <p class="text-[10px] text-slate-500 text-center pt-2">versão 2.1</p>
+        <p class="text-[10px] text-slate-500 text-center pt-2">versão 2.2</p>
       </div>
     </aside>
     <div class="flex-1 max-w-6xl mx-auto py-6 px-4 w-full">
@@ -1944,8 +1944,8 @@ function seloEng(ap, chapa, tot){
     '</div>';
 }
 function htmlFolha(chapa, meds, ap){
-  // dedup pra não repetir Integração / VT na impressão
-  meds = dedupMedicoes(meds||[]);
+  // só ativos + dedup pra não repetir serviço / Integração / VT
+  meds = dedupMedicoes((meds||[]).filter(function(m){ return m && !m.deleted; }));
   var o = dadosObraAtual();
   var nome = (meds[0]&&meds[0].funcionario)||"";
   var funcao = (meds[0]&&meds[0].funcao)||"";
@@ -2122,15 +2122,20 @@ function reprovarMedicao(chapa){
   delete db.aprovacoes[String(chapa)];
   save(); render();
 }
+function medsParaImpressao(){
+  return medicoesAtivas(db.medicoes||[]).filter(function(m){
+    return typeof medPertenceObra==="function" ? medPertenceObra(m) : true;
+  });
+}
 function imprimirFolha(chapa){
-  var meds = (db.medicoes||[]).filter(function(m){ return String(m.chapa)===String(chapa); });
+  var meds = medsParaImpressao().filter(function(m){ return String(m.chapa)===String(chapa); });
   if(!meds.length) return alert("Sem lançamento nessa chapa");
   var ap = aprovacaoChapa(chapa);
   if(!ap) return alert("Engenharia ainda não aprovou esta medição. Não imprime.");
   abrirImpressao(htmlFolha(chapa, meds, ap));
 }
 function imprimirTodasFolhas(){
-  var meds = db.medicoes||[];
+  var meds = medsParaImpressao();
   var chapas = [];
   meds.forEach(function(m){
     var c = String(m.chapa||"");
