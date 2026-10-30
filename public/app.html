@@ -57,7 +57,7 @@
         <button type="button" onclick="sincronizarNuvem()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-300 hover:bg-white/10">☁️ Sincronizar nuvem</button>
         <button onclick="resetar()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-400 hover:bg-white/10">♻️ Reset dados</button>
         <button onclick="sair()" id="btnSair" class="hidden w-full text-left px-3 py-2 rounded-xl text-sm bg-rose-500/80 hover:bg-rose-500">🚪 Sair</button>
-        <p class="text-[10px] text-slate-500 text-center pt-2">versão 2.2</p>
+        <p class="text-[10px] text-slate-500 text-center pt-2">versão 2.3</p>
       </div>
     </aside>
     <div class="flex-1 max-w-6xl mx-auto py-6 px-4 w-full">
@@ -209,6 +209,10 @@
               <div class="md:col-span-3 flex items-center gap-2 pt-1">
                 <input id="filhoExtra" type="checkbox" class="w-4 h-4" />
                 <label for="filhoExtra" class="text-sm text-amber-700 font-medium">Serviço extra (não contratado)</label>
+              </div>
+              <div class="md:col-span-3 flex items-center gap-2">
+                <input id="filhoOcultarImp" type="checkbox" class="w-4 h-4" />
+                <label for="filhoOcultarImp" class="text-sm text-slate-600 font-medium">Ocultar na impressão (não sai na folha)</label>
               </div>
             </div>
             <div class="flex flex-wrap gap-2 justify-between">
@@ -1005,10 +1009,10 @@ function salvarFilho(){
   if(editandoFilhoId){
     var f = db.filhos.find(function(x){ return x.id===editandoFilhoId; });
     if(qtd < somaLib(f)) return alert("Quantidade menor do que já foi liberado");
-    f.nome=nome; f.un=un; f.qtd=qtd; f.funcoes=funcoes; f.extra=document.getElementById("filhoExtra").checked;
+    f.nome=nome; f.un=un; f.qtd=qtd; f.funcoes=funcoes; f.extra=document.getElementById("filhoExtra").checked; f.ocultarImpressao=document.getElementById("filhoOcultarImp").checked;
     cancelarEdicaoFilho();
   } else {
-    db.filhos.push({id:Date.now(), paiId:paiSel, nome:nome, un:un, qtd:qtd, funcoes:funcoes, extra:document.getElementById("filhoExtra").checked, liberacoes:[]});
+    db.filhos.push({id:Date.now(), paiId:paiSel, nome:nome, un:un, qtd:qtd, funcoes:funcoes, extra:document.getElementById("filhoExtra").checked, ocultarImpressao:document.getElementById("filhoOcultarImp").checked, liberacoes:[]});
     document.getElementById("filhoNome").value = "";
     document.getElementById("filhoQtd").value = "";
   }
@@ -1021,6 +1025,7 @@ function editarFilho(id){
   document.getElementById("filhoUn").value = f.un;
   document.getElementById("filhoQtd").value = f.qtd;
   document.getElementById("filhoExtra").checked = !!f.extra;
+  document.getElementById("filhoOcultarImp").checked = !!f.ocultarImpressao;
   preencherFuncoes(f.funcoes);
   document.getElementById("btnFilho").textContent = "Salvar filho";
   document.getElementById("btnCancelarFilho").classList.remove("hidden");
@@ -1030,6 +1035,7 @@ function cancelarEdicaoFilho(){
   document.getElementById("filhoNome").value = "";
   document.getElementById("filhoQtd").value = "";
   document.getElementById("filhoExtra").checked = false;
+  document.getElementById("filhoOcultarImp").checked = false;
   preencherFuncoes({});
   document.getElementById("btnFilho").textContent = "Adicionar filho neste pai";
   document.getElementById("btnCancelarFilho").classList.add("hidden");
@@ -1949,7 +1955,12 @@ function htmlFolha(chapa, meds, ap){
   var o = dadosObraAtual();
   var nome = (meds[0]&&meds[0].funcionario)||"";
   var funcao = (meds[0]&&meds[0].funcao)||"";
-  var serv = meds.filter(function(m){ return !m.tipo || (m.tipo!=="integracao" && m.tipo!=="vtSabado" && m.tipo!=="extra"); });
+  var serv = meds.filter(function(m){
+    if(m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra") return false;
+    var filho = (db.filhos||[]).find(function(f){ return String(f.id)===String(m.filhoId) || (m.item && String(f.nome).trim()===String(m.item).trim()); });
+    if(filho && filho.ocultarImpressao) return false;
+    return true;
+  });
   var extras = meds.filter(function(m){ return m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra"; });
   // garante 1 de cada tipo de vale
   var extrasUnicos = {};
@@ -2914,7 +2925,7 @@ function salvarDbNaObra(){
   store.cadastro[store.obraId] = {
     pais: JSON.parse(JSON.stringify(db.pais||[])),
     filhos: (db.filhos||[]).map(function(f){
-      return {id:f.id, paiId:f.paiId, nome:f.nome, un:f.un, qtd:f.qtd, funcoes:f.funcoes||{}, extra:!!f.extra};
+      return {id:f.id, paiId:f.paiId, nome:f.nome, un:f.un, qtd:f.qtd, funcoes:f.funcoes||{}, extra:!!f.extra, ocultarImpressao:!!f.ocultarImpressao};
     })
   };
   store.dados = store.dados || {};
