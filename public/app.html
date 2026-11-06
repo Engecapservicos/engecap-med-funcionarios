@@ -57,7 +57,7 @@
         <button type="button" onclick="sincronizarNuvem()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-300 hover:bg-white/10">☁️ Sincronizar nuvem</button>
         <button onclick="resetar()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-400 hover:bg-white/10">♻️ Reset dados</button>
         <button onclick="sair()" id="btnSair" class="hidden w-full text-left px-3 py-2 rounded-xl text-sm bg-rose-500/80 hover:bg-rose-500">🚪 Sair</button>
-        <p class="text-[10px] text-slate-500 text-center pt-2">versão 2.5</p>
+        <p class="text-[10px] text-slate-500 text-center pt-2">versão 2.6</p>
       </div>
     </aside>
     <div class="flex-1 max-w-6xl mx-auto py-6 px-4 w-full">
@@ -1543,7 +1543,8 @@ function renderEngsObra(){
   var engs = (o && o.engs) ? o.engs : [];
   box.innerHTML = engs.length ? engs.map(function(a){
     var key = String(a).replace(/[^a-zA-Z0-9_-]/g,"");
-    return '<span class="inline-flex items-center gap-2 bg-slate-100 border border-slate-300 rounded-full px-3 py-1">'+a+' <button type="button" class="eng-x text-slate-400 hover:text-red-600" data-eng="'+key+'">x</button></span>';
+    var safe = String(a).replace(/"/g, """);
+    return '<span class="inline-flex items-center gap-2 bg-slate-100 border border-slate-300 rounded-full px-3 py-1">'+a+' <button type="button" class="eng-x text-slate-400 hover:text-red-600" data-eng="'+safe+'">x</button></span>';
   }).join("") : '<span class="text-xs text-slate-400">Nenhum engenheiro extra. Com a lista vazia, todo engenheiro vê a obra.</span>';
   box.querySelectorAll(".eng-x").forEach(function(btn){
     btn.onclick = function(){ desvincularEngObra(btn.getAttribute("data-eng")); };
@@ -1579,8 +1580,8 @@ function renderAdmsObra(){
   var o = (store.obras||[]).find(function(x){ return x.id===store.obraId; });
   var adms = (o && o.adms) ? o.adms : [];
   box.innerHTML = adms.length ? adms.map(function(a){
-    var key = String(a).replace(/[^a-zA-Z0-9_-]/g,"");
-    return '<span class="inline-flex items-center gap-2 bg-slate-100 border rounded-full px-3 py-1">'+a+' <button type="button" class="adm-x text-slate-400 hover:text-red-600" data-adm="'+key+'">x</button></span>';
+    var safe = String(a).replace(/"/g, """);
+    return '<span class="inline-flex items-center gap-2 bg-slate-100 border rounded-full px-3 py-1">'+a+' <button type="button" class="adm-x text-slate-400 hover:text-red-600" data-adm="'+safe+'">x</button></span>';
   }).join("") : '<span class="text-xs text-slate-400">Nenhum ADM vinculado ainda.</span>';
   box.querySelectorAll(".adm-x").forEach(function(btn){
     btn.onclick = function(){ desvincularAdmObra(btn.getAttribute("data-adm")); };
