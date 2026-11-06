@@ -57,7 +57,7 @@
         <button type="button" onclick="sincronizarNuvem()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-300 hover:bg-white/10">☁️ Sincronizar nuvem</button>
         <button onclick="resetar()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-400 hover:bg-white/10">♻️ Reset dados</button>
         <button onclick="sair()" id="btnSair" class="hidden w-full text-left px-3 py-2 rounded-xl text-sm bg-rose-500/80 hover:bg-rose-500">🚪 Sair</button>
-        <p class="text-[10px] text-slate-500 text-center pt-2">versão 2.3</p>
+        <p class="text-[10px] text-slate-500 text-center pt-2">versão 2.4</p>
       </div>
     </aside>
     <div class="flex-1 max-w-6xl mx-auto py-6 px-4 w-full">
@@ -430,21 +430,20 @@ const seed = {
 };
 
 function load(){
-  try {
-    const raw = localStorage.getItem(KEY);
-    if(!raw) return JSON.parse(JSON.stringify(seed));
-    const data = JSON.parse(raw);
-    data.filhos.forEach(f => { if(!f.liberacoes) f.liberacoes = []; });
-    if(!data.medicoes) data.medicoes = [];
-    return data;
-  } catch(e) {
-    return JSON.parse(JSON.stringify(seed));
-  }
+  // nuvem-only: não carrega medição do local
+  return JSON.parse(JSON.stringify(seed));
 }
-function save(){
-  if(!sbOn()){ alert("Sem conexão com a nuvem. Não dá pra salvar."); return; }
-  localStorage.setItem(KEY, JSON.stringify(db));
-  salvarDbNaObra();
+async function save(){
+  if(!sbOn()){ alert("Sem conexão com a nuvem. Não dá pra salvar."); return false; }
+  salvarDbNaObra(true); // true = não dispara push automático
+  try {
+    await cloudPushStore();
+    alert("Salvo na nuvem.");
+    return true;
+  } catch(e){
+    alert("Erro ao salvar na nuvem: " + (e.message||e));
+    return false;
+  }
 }
 function resetar(){
   if(!sessao || sessao.role!=="admin") return alert("Só admin pode resetar.");
@@ -462,15 +461,13 @@ function resetar(){
 
 const STORE_KEY = "engecap_mo_store_v1";
 function loadStore(){
-  try {
-    var raw = localStorage.getItem(STORE_KEY);
-    if(raw) return JSON.parse(raw);
-  } catch(e){}
+  // nuvem-only: começa vazio, dados vêm do pull
   return {
-    obras: [{id:"o329", codigo:"329", nome:"Arizona", cliente:"EVEN"}],
+    obras: [],
     obraId: null,
-    periodo: "2026-08",
-    dados: {}
+    periodo: "2026-10",
+    dados: {},
+    cadastro: {}
   };
 }
 
@@ -488,8 +485,8 @@ async function sincronizarNuvem(){
   }
 }
 function saveStore(){
-  localStorage.setItem(STORE_KEY, JSON.stringify(store));
-  if(sbOn()) cloudPushStore().catch(function(e){ console.warn(e); });
+  // nuvem-only: não grava dados de medição no localStorage
+  // sessão e configs continuam locais
 }
 let store = loadStore();
 
@@ -620,7 +617,7 @@ async function cloudPullStore(){
     if((!o.engs || !o.engs.length) && store.cadastro[o.id] && store.cadastro[o.id].engs)
       o.engs = store.cadastro[o.id].engs;
   });
-  localStorage.setItem(STORE_KEY, JSON.stringify(store));
+  // nuvem-only: não persiste store local
 }
 
 var _pollTimer = null;
@@ -642,7 +639,6 @@ async function pollPeriodoAtual(){
       if(r.data.updated_at) store.dados[key]._updated_at = r.data.updated_at;
       if(r.data.libs) store.dados[key].libs = r.data.libs;
       if(r.data.aprovacoes) store.dados[key].aprovacoes = r.data.aprovacoes;
-      localStorage.setItem(STORE_KEY, JSON.stringify(store));
       carregarDbDaObra();
       if(typeof render === "function") render();
       var st = document.getElementById("nuvemStatus");
@@ -2944,7 +2940,7 @@ function salvarDbNaObra(){
     aprovacoes: db.aprovacoes||{},
     _updated_at: prev._updated_at || ""
   };
-  saveStore();
+  // não chama saveStore (que não persiste mais)
 }
 
 
