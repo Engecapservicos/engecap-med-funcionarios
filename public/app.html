@@ -57,7 +57,7 @@
         <button type="button" onclick="sincronizarNuvem()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-300 hover:bg-white/10">☁️ Sincronizar nuvem</button>
         <button onclick="resetar()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-400 hover:bg-white/10">♻️ Reset dados</button>
         <button onclick="sair()" id="btnSair" class="hidden w-full text-left px-3 py-2 rounded-xl text-sm bg-rose-500/80 hover:bg-rose-500">🚪 Sair</button>
-        <p class="text-[10px] text-slate-500 text-center pt-2">versão 2.6</p>
+        <p class="text-[10px] text-slate-500 text-center pt-2">versão 2.7</p>
       </div>
     </aside>
     <div class="flex-1 max-w-6xl mx-auto py-6 px-4 w-full">
@@ -790,9 +790,15 @@ async function fazerLogin(){
       await cloudPullStore();
       if(store.obraId) carregarDbDaObra();
     } catch(e){
-      box.textContent = "Supabase: "+e.message;
-      box.classList.remove("hidden");
-      return;
+      // nuvem falhou: tenta usuário local pra não travar o acesso
+      u = (typeof USERS_DB!=="undefined"?USERS_DB:USERS).find(function(x){
+        return x.user===user && x.senha===senha && x.active!==false;
+      });
+      if(!u){
+        box.textContent = "Supabase: "+e.message;
+        box.classList.remove("hidden");
+        return;
+      }
     }
   } else {
     u = (typeof USERS_DB!=="undefined"?USERS_DB:USERS).find(function(x){
