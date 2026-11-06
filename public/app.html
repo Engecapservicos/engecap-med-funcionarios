@@ -57,7 +57,7 @@
         <button type="button" onclick="sincronizarNuvem()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-300 hover:bg-white/10">☁️ Sincronizar nuvem</button>
         <button onclick="resetar()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-400 hover:bg-white/10">♻️ Reset dados</button>
         <button onclick="sair()" id="btnSair" class="hidden w-full text-left px-3 py-2 rounded-xl text-sm bg-rose-500/80 hover:bg-rose-500">🚪 Sair</button>
-        <p class="text-[10px] text-slate-500 text-center pt-2">versão 2.4</p>
+        <p class="text-[10px] text-slate-500 text-center pt-2">versão 2.5</p>
       </div>
     </aside>
     <div class="flex-1 max-w-6xl mx-auto py-6 px-4 w-full">
@@ -115,6 +115,10 @@
           <div class="p-4 border-b">
             <p class="text-xs text-slate-500 mb-2">Backup completo</p>
             <button type="button" onclick="baixarBackup()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm px-4 py-2 rounded-lg font-medium">⬇️ Baixar backup</button>
+            <label class="ml-2 inline-block bg-amber-600 hover:bg-amber-700 text-white text-sm px-4 py-2 rounded-lg font-medium cursor-pointer">
+              ⬆️ Restaurar backup
+              <input type="file" accept=".json,application/json" onchange="restaurarBackup(event)" class="hidden" />
+            </label>
             <p id="backupMsg" class="text-xs text-slate-500 mt-2 mb-3"></p>
             <hr class="my-3" />
             <p class="text-xs text-slate-500 mb-2">CSV funcionários (chapa;nome;funcao)</p>
@@ -2662,6 +2666,34 @@ function checarBackupDiario(){
       baixarBackup();
     }
   }
+}
+
+
+async function restaurarBackup(ev){
+  var file = ev.target.files && ev.target.files[0];
+  if(!file) return;
+  if(!confirm("Restaurar este backup? Isso vai substituir os dados atuais na nuvem pelos do arquivo.")) return;
+  try{
+    var text = await file.text();
+    var data = JSON.parse(text);
+    if(!data.dados && !data.obras) return alert("Arquivo inválido.");
+    if(!sbOn()) return alert("Sem conexão com a nuvem.");
+    // aplica no store e empurra
+    if(data.obras) store.obras = data.obras;
+    if(data.cadastro) store.cadastro = data.cadastro;
+    if(data.dados) store.dados = data.dados;
+    await cloudPushStore();
+    await cloudPullStore();
+    if(store.obraId) carregarDbDaObra();
+    render();
+    var msg = document.getElementById("backupMsg");
+    if(msg) msg.textContent = "Backup restaurado: " + file.name;
+    alert("Backup restaurado na nuvem.");
+    if(typeof addLog==="function") addLog("Restaurou backup " + file.name);
+  }catch(e){
+    alert("Erro ao restaurar: " + e.message);
+  }
+  ev.target.value = "";
 }
 
 function baixarBackup(){
