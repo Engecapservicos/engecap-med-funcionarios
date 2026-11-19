@@ -57,7 +57,6 @@
         <button type="button" onclick="sincronizarNuvem()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-300 hover:bg-white/10">☁️ Sincronizar nuvem</button>
         <button onclick="resetar()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-400 hover:bg-white/10">♻️ Reset dados</button>
         <button onclick="sair()" id="btnSair" class="hidden w-full text-left px-3 py-2 rounded-xl text-sm bg-rose-500/80 hover:bg-rose-500">🚪 Sair</button>
-        <p class="text-[10px] text-slate-500 text-center pt-2">versão 2.5</p>
       </div>
     </aside>
     <div class="flex-1 max-w-6xl mx-auto py-6 px-4 w-full">
@@ -69,7 +68,7 @@
     <div id="viewHome" class="hidden">
       <div class="flex justify-between items-center mb-4">
         <h2 class="font-semibold">Minhas obras</h2>
-        <button id="btnNovaObra" onclick="novaObra()" class="bg-slate-600 text-white text-sm px-3 py-2 rounded-lg">+ Nova obra</button>
+        <button id="btnNovaObra" onclick="novaObra()" class="bg-blue-600 text-white text-sm px-3 py-2 rounded-lg">+ Nova obra</button>
       </div>
       <div id="listaObras" class="grid md:grid-cols-3 gap-4"></div>
     </div>
@@ -82,7 +81,7 @@
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 text-sm">
           <div class="bg-slate-50 rounded-xl p-3"><p class="text-[11px] text-slate-400">TAREFA PREVISTA (CADASTRO)</p><p id="prevTarefa" class="text-xl font-bold">R$ 0,00</p></div>
           <div class="bg-amber-50 rounded-xl p-3"><p class="text-[11px] text-amber-600">SALÁRIO C/ ENCARGOS (d)</p><p id="prevEnc" class="text-xl font-bold text-amber-800">R$ 0,00</p></div>
-          <div class="bg-slate-100 rounded-xl p-3"><p class="text-[11px] text-slate-500">CUSTO TOTAL (d + prêmio)</p><p id="prevCustoMes" class="text-xl font-bold text-slate-800">R$ 0,00</p></div>
+          <div class="bg-blue-50 rounded-xl p-3"><p class="text-[11px] text-blue-500">CUSTO TOTAL (d + prêmio)</p><p id="prevCustoMes" class="text-xl font-bold text-blue-800">R$ 0,00</p></div>
           <div class="bg-slate-800 text-white rounded-xl p-3"><p class="text-[11px] text-slate-300">GASTO REAL PREVISTO</p><p id="prevGastoMes" class="text-xl font-bold">R$ 0,00</p></div>
         </div>
       </section>
@@ -113,17 +112,9 @@
             <h3 class="font-bold">Logs</h3>
           </header>
           <div class="p-4 border-b">
-            <p class="text-xs text-slate-500 mb-2">Backup completo</p>
-            <button type="button" onclick="baixarBackup()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm px-4 py-2 rounded-lg font-medium">⬇️ Baixar backup</button>
-            <label class="ml-2 inline-block bg-amber-600 hover:bg-amber-700 text-white text-sm px-4 py-2 rounded-lg font-medium cursor-pointer">
-              ⬆️ Restaurar backup
-              <input type="file" accept=".json,application/json" onchange="restaurarBackup(event)" class="hidden" />
-            </label>
-            <p id="backupMsg" class="text-xs text-slate-500 mt-2 mb-3"></p>
-            <hr class="my-3" />
             <p class="text-xs text-slate-500 mb-2">CSV funcionários (chapa;nome;funcao)</p>
             <input type="file" accept=".csv,text/csv" onchange="subirCsv(event)" class="text-sm" />
-            <button type="button" onclick="enviarFuncionariosNuvem()" class="mt-2 bg-slate-600 text-white text-sm px-3 py-2 rounded-lg">Enviar lista para a nuvem</button>
+            <button type="button" onclick="enviarFuncionariosNuvem()" class="mt-2 bg-blue-600 text-white text-sm px-3 py-2 rounded-lg">Enviar lista para a nuvem</button>
             <p id="csvMsg" class="text-xs text-slate-500 mt-2"></p>
             <p id="nuvemStatus" class="text-xs text-slate-400 mt-1"></p>
           </div>
@@ -154,7 +145,7 @@
           <p class="text-[11px] text-slate-500 mb-2">Quem for vinculado vê esta obra no menu Obras e lança medição nela. Pode ser mais de um.</p>
           <div class="flex gap-2 mb-2">
             <input id="obraAdmUser" placeholder="usuário do ADM (ex: joao)" class="border rounded-lg px-3 py-2 text-sm flex-1" />
-            <button type="button" onclick="vincularAdmObra()" class="bg-slate-600 text-white text-sm px-3 py-2 rounded-lg">Vincular</button>
+            <button type="button" onclick="vincularAdmObra()" class="bg-blue-600 text-white text-sm px-3 py-2 rounded-lg">Vincular</button>
           </div>
           <div id="listaAdmsObra" class="flex flex-wrap gap-2 text-sm"></div>
           <p class="text-sm font-medium mb-1 mt-4">Engenheiros desta obra</p>
@@ -214,10 +205,6 @@
                 <input id="filhoExtra" type="checkbox" class="w-4 h-4" />
                 <label for="filhoExtra" class="text-sm text-amber-700 font-medium">Serviço extra (não contratado)</label>
               </div>
-              <div class="md:col-span-3 flex items-center gap-2">
-                <input id="filhoOcultarImp" type="checkbox" class="w-4 h-4" />
-                <label for="filhoOcultarImp" class="text-sm text-slate-600 font-medium">Ocultar na impressão (não sai na folha)</label>
-              </div>
             </div>
             <div class="flex flex-wrap gap-2 justify-between">
               <div class="flex gap-2">
@@ -226,7 +213,7 @@
               </div>
               <div class="flex gap-2">
                 <button id="btnCancelarFilho" onclick="cancelarEdicaoFilho()" class="hidden text-sm border px-3 py-2 rounded-lg">Cancelar</button>
-                <button id="btnFilho" onclick="salvarFilho()" class="bg-slate-600 text-white text-sm px-4 py-2 rounded-lg">Adicionar filho neste pai</button>
+                <button id="btnFilho" onclick="salvarFilho()" class="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg">Adicionar filho neste pai</button>
               </div>
             </div>
           </div>
@@ -235,7 +222,7 @@
       </div>
       <div class="mt-5 bg-white rounded-2xl border p-4 flex justify-between">
         <span class="text-sm text-slate-500">Total previsto a pagar</span>
-        <span id="total" class="font-bold text-slate-700">R$ 0,00</span>
+        <span id="total" class="font-bold text-blue-700">R$ 0,00</span>
       </div>
     </div>
 
@@ -331,8 +318,8 @@
             </div>
             <button onclick="buscarChapaResumo()" class="bg-slate-800 text-white text-sm px-3 py-2 rounded-lg">Pesquisar</button>
             <button onclick="limparBuscaChapa()" class="border text-sm px-3 py-2 rounded-lg">Limpar</button>
-            <button type="button" id="btnAprovarSel" onclick="aprovarSelecionadas()" class="bg-slate-600 text-white text-sm px-3 py-2 rounded-lg">Aprovar selecionadas</button>
-            <button type="button" id="btnAprovarTodas" onclick="aprovarTodasPendentes()" class="border border-slate-600 text-slate-700 text-sm px-3 py-2 rounded-lg">Aprovar todas pendentes</button>
+            <button type="button" id="btnAprovarSel" onclick="aprovarSelecionadas()" class="bg-blue-600 text-white text-sm px-3 py-2 rounded-lg">Aprovar selecionadas</button>
+            <button type="button" id="btnAprovarTodas" onclick="aprovarTodasPendentes()" class="border border-blue-600 text-blue-700 text-sm px-3 py-2 rounded-lg">Aprovar todas pendentes</button>
           </div>
         </div>
         <p id="buscaChapaInfo" class="text-xs text-slate-500 mb-3 hidden"></p>
@@ -342,9 +329,9 @@
             <p class="text-[11px] uppercase tracking-wide text-slate-400">Pessoas</p>
             <p id="fecQtdFunc" class="text-xl font-bold">0</p>
           </div>
-          <div class="bg-slate-100 rounded-xl p-3">
-            <p class="text-[11px] uppercase tracking-wide text-slate-400">Salário tarefa</p>
-            <p id="fecTarefa" class="text-xl font-bold text-slate-700">R$ 0,00</p>
+          <div class="bg-blue-50 rounded-xl p-3">
+            <p class="text-[11px] uppercase tracking-wide text-blue-400">Salário tarefa</p>
+            <p id="fecTarefa" class="text-xl font-bold text-blue-700">R$ 0,00</p>
           </div>
           <div class="bg-emerald-50 rounded-xl p-3">
             <p class="text-[11px] uppercase tracking-wide text-emerald-500">Prêmio</p>
@@ -434,44 +421,43 @@ const seed = {
 };
 
 function load(){
-  // nuvem-only: não carrega medição do local
-  return JSON.parse(JSON.stringify(seed));
-}
-async function save(){
-  if(!sbOn()){ alert("Sem conexão com a nuvem. Não dá pra salvar."); return false; }
-  salvarDbNaObra(true); // true = não dispara push automático
   try {
-    await cloudPushStore();
-    alert("Salvo na nuvem.");
-    return true;
-  } catch(e){
-    alert("Erro ao salvar na nuvem: " + (e.message||e));
-    return false;
+    const raw = localStorage.getItem(KEY);
+    if(!raw) return JSON.parse(JSON.stringify(seed));
+    const data = JSON.parse(raw);
+    data.filhos.forEach(f => { if(!f.liberacoes) f.liberacoes = []; });
+    if(!data.medicoes) data.medicoes = [];
+    return data;
+  } catch(e) {
+    return JSON.parse(JSON.stringify(seed));
   }
 }
+function save(){
+  if(!sbOn()){ alert("Sem conexão com a nuvem. Não dá pra salvar."); return; }
+  localStorage.setItem(KEY, JSON.stringify(db));
+  salvarDbNaObra();
+}
 function resetar(){
-  if(!sessao || sessao.role!=="admin") return alert("Só admin pode resetar.");
-  var conf = prompt("Digite RESETAR em maiúsculo para zerar os dados locais de teste:");
-  if(conf!=="RESETAR") return alert("Cancelado.");
-  if(!confirm("Tem certeza? Isso zera o local e pode afetar a sincronização.")) return;
+  if(!confirm("Zerar os dados de teste?")) return;
   localStorage.removeItem(KEY);
   db = JSON.parse(JSON.stringify(seed));
-  paiSel = db.pais[0] ? db.pais[0].id : null;
+  paiSel = db.pais[0].id;
   save();
   render();
-  if(typeof addLog==="function") addLog("RESET dados executado por admin");
 }
 
 
 const STORE_KEY = "engecap_mo_store_v1";
 function loadStore(){
-  // nuvem-only: começa vazio, dados vêm do pull
+  try {
+    var raw = localStorage.getItem(STORE_KEY);
+    if(raw) return JSON.parse(raw);
+  } catch(e){}
   return {
-    obras: [],
+    obras: [{id:"o329", codigo:"329", nome:"Arizona", cliente:"EVEN"}],
     obraId: null,
-    periodo: "2026-10",
-    dados: {},
-    cadastro: {}
+    periodo: "2026-08",
+    dados: {}
   };
 }
 
@@ -483,14 +469,14 @@ async function sincronizarNuvem(){
     await cloudPullStore();
     if(store.obraId) carregarDbDaObra();
     render();
-    alert("Sincronizado com a nuvem."); addLog("Sincronizou nuvem");
+    alert("Sincronizado com a nuvem.");
   }catch(e){
     alert("Falha na nuvem: "+e.message);
   }
 }
 function saveStore(){
-  // nuvem-only: não grava dados de medição no localStorage
-  // sessão e configs continuam locais
+  localStorage.setItem(STORE_KEY, JSON.stringify(store));
+  if(sbOn()) cloudPushStore().catch(function(e){ console.warn(e); });
 }
 let store = loadStore();
 
@@ -550,18 +536,12 @@ async function cloudSaveFuncionarios(rows){
   var r = await sb.from("funcionarios").upsert(payload, { onConflict: "chapa" });
   if(r.error) throw new Error(r.error.message);
 }
-function medKey(m){
-  if(!m) return "";
-  // chave lógica estável: mesma medição mesmo com id diferente
-  return String(m.chapa||"")+"|"+String(m.tipo||"")+"|"+String(m.item||"")+"|"+String(m.libId||"")+"|"+String(m.obraId||"");
-}
 function dedupMedicoes(arr){
   var mapa = {};
   (arr||[]).forEach(function(m){
     if(!m) return;
-    var k = medKey(m);
-    var atual = mapa[k];
-    if(!atual || (m.updated_at||"") > (atual.updated_at||"")) mapa[k] = m;
+    var k = String(m.chapa||"")+"|"+String(m.tipo||"")+"|"+String(m.item||"")+"|"+String(m.libId||"")+"|"+String(m.obraId||"");
+    mapa[k] = m;
   });
   return Object.keys(mapa).map(function(k){ return mapa[k]; });
 }
@@ -569,16 +549,12 @@ function mergeMedicoes(local, remoto){
   var mapa = {};
   function add(m){
     if(!m) return;
-    var k = medKey(m);
-    var atual = mapa[k];
-    if(!atual || (m.updated_at||"") >= (atual.updated_at||"")) mapa[k] = m;
+    var k = String(m.id||"") || (String(m.chapa||"")+"|"+String(m.tipo||"")+"|"+String(m.item||"")+"|"+String(m.libId||""));
+    mapa[k] = m;
   }
   (remoto||[]).forEach(add);
   (local||[]).forEach(add);
   return Object.keys(mapa).map(function(k){ return mapa[k]; });
-}
-function medicoesAtivas(arr){
-  return (arr||[]).filter(function(m){ return m && !m.deleted; });
 }
 async function cloudPullStore(){
   if(!sbOn()) return;
@@ -599,15 +575,11 @@ async function cloudPullStore(){
     var libs = c.libs||{};
     var key = c.obra_id+"|"+c.periodo;
     var local = localDados[key] || {};
-    var remoto = dedupMedicoes(c.medicoes||[]);
-    var localMeds = local.medicoes || [];
-    var meds = mergeMedicoes(localMeds, remoto);
-    var remotoAtualizado = c.updated_at || "";
+    var meds = mergeMedicoes(local.medicoes, c.medicoes||[]);
     store.dados[key] = {
       medicoes: meds,
       libs: libs,
-      aprovacoes: c.aprovacoes || libs.__aprovacoes || local.aprovacoes || {},
-      _updated_at: remotoAtualizado || local._updated_at || ""
+      aprovacoes: c.aprovacoes || libs.__aprovacoes || local.aprovacoes || {}
     };
   });
   Object.keys(localDados).forEach(function(key){
@@ -621,7 +593,7 @@ async function cloudPullStore(){
     if((!o.engs || !o.engs.length) && store.cadastro[o.id] && store.cadastro[o.id].engs)
       o.engs = store.cadastro[o.id].engs;
   });
-  // nuvem-only: não persiste store local
+  localStorage.setItem(STORE_KEY, JSON.stringify(store));
 }
 
 var _pollTimer = null;
@@ -629,20 +601,19 @@ var _lastMedCount = -1;
 async function pollPeriodoAtual(){
   if(!sbOn() || !store.obraId || !store.periodo) return;
   try{
-    var r = await sb.from("mo_periodo").select("medicoes,libs,aprovacoes,updated_at").eq("obra_id", store.obraId).eq("periodo", store.periodo).maybeSingle();
+    var r = await sb.from("mo_periodo").select("medicoes,libs,aprovacoes").eq("obra_id", store.obraId).eq("periodo", store.periodo).maybeSingle();
     if(r.error || !r.data) return;
     var key = store.obraId+"|"+store.periodo;
     var remoto = dedupMedicoes(r.data.medicoes || []);
     var local = ((store.dados||{})[key]||{}).medicoes || [];
-    var final = mergeMedicoes(local, remoto);
-    var mudou = JSON.stringify(final) !== JSON.stringify(local);
+    var mudou = JSON.stringify(remoto) !== JSON.stringify(local);
     if(mudou){
       store.dados = store.dados || {};
       store.dados[key] = store.dados[key] || { medicoes:[], libs:{} };
-      store.dados[key].medicoes = final;
-      if(r.data.updated_at) store.dados[key]._updated_at = r.data.updated_at;
+      store.dados[key].medicoes = remoto;
       if(r.data.libs) store.dados[key].libs = r.data.libs;
       if(r.data.aprovacoes) store.dados[key].aprovacoes = r.data.aprovacoes;
+      localStorage.setItem(STORE_KEY, JSON.stringify(store));
       carregarDbDaObra();
       if(typeof render === "function") render();
       var st = document.getElementById("nuvemStatus");
@@ -686,46 +657,17 @@ async function cloudPushStore(){
     if(r2.error) console.warn(r2.error);
   }
   var ks = Object.keys(store.dados||{});
-  var obrasValidas = {};
-  (store.obras||[]).forEach(function(o){ if(o && o.id) obrasValidas[o.id] = true; });
   for(var k=0;k<ks.length;k++){
     var key = ks[k];
     var parts = key.split("|");
-    var obraIdPush = parts[0];
-    if(!obrasValidas[obraIdPush]){
-      console.warn("Push ignorado: obra não existe em mo_obras", key);
-      continue;
-    }
     var d = store.dados[key];
     var libsPush = d.libs || {};
     libsPush.__aprovacoes = d.aprovacoes || libsPush.__aprovacoes || {};
-
-    // TRAVA ANTI-PERDA: puxa o remoto e faz merge antes de subir.
-    // Um aparelho com menos lançamentos nunca mais apaga os da nuvem.
-    var remotoRow = await sb.from("mo_periodo")
-      .select("medicoes")
-      .eq("obra_id", parts[0])
-      .eq("periodo", parts[1])
-      .maybeSingle();
-    var remotoMeds = (remotoRow.data && remotoRow.data.medicoes) || [];
-    var localMeds = d.medicoes || [];
-    var localAtivos = medicoesAtivas(localMeds);
-    var remotoAtivos = medicoesAtivas(remotoMeds);
-    // TRAVA: local vazio + remoto com dados → não sobe (evita apagar tudo)
-    if(localAtivos.length === 0 && remotoAtivos.length > 0){
-      console.warn("Push bloqueado: local vazio e nuvem tem lançamentos", key);
-      d.medicoes = remotoMeds;
-      continue;
-    }
-    var merged = mergeMedicoes(localMeds, remotoMeds);
-    d.medicoes = merged;
-    var agora = new Date().toISOString();
     var r3 = await sb.from("mo_periodo").upsert({
-      obra_id:parts[0], periodo:parts[1], medicoes:merged, libs:libsPush,
-      updated_at: agora
+      obra_id:parts[0], periodo:parts[1], medicoes:d.medicoes||[], libs:libsPush,
+      updated_at: new Date().toISOString()
     });
-    d._updated_at = agora;
-    if(r3.error) throw new Error(r3.error.message || "Falha ao salvar período na nuvem");
+    if(r3.error) console.warn(r3.error);
   }
 }
 
@@ -808,7 +750,6 @@ async function fazerLogin(){
   sessao = { email:u.email|| (user+"@engecap.com"), role:u.role, user:u.user||user };
   localStorage.setItem("engecap_mo_sessao", JSON.stringify(sessao));
   if(typeof addLog==="function") addLog("Login "+sessao.user+" ("+sessao.role+")");
-  setTimeout(checarBackupDiario, 1500);
   aplicarAcesso();
   if(sessao.role==="apontador"){
     if(!store.obraId && store.obras && store.obras[0]) {
@@ -922,7 +863,7 @@ function ir(v){
     var el = document.getElementById(map[name]);
     if(!el) return;
     var icons = {home:"🏗️ Obras", cadastro:"📋 Cadastro", liberacao:"🔓 Liberação", lancamento:"✍️ Lançar medição", fechar:"📊 Resumo", saldo:"📦 Controle de saldo", previsao:"📈 Previsão", admin:"🛡️ Admin"};
-    el.className = "w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium " + (v===name ? "bg-slate-500 text-white" : "hover:bg-white/10 text-white");
+    el.className = "w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium " + (v===name ? "bg-blue-500 text-white" : "hover:bg-white/10 text-white");
     if(icons[name]) el.textContent = icons[name];
   });
   render();
@@ -999,7 +940,6 @@ function preencherFuncoes(f){
   }
 }
 function salvarFilho(){
-  /* log on success below */
   if(!paiSel) return;
   var nome = document.getElementById("filhoNome").value.trim();
   var un = document.getElementById("filhoUn").value;
@@ -1009,10 +949,10 @@ function salvarFilho(){
   if(editandoFilhoId){
     var f = db.filhos.find(function(x){ return x.id===editandoFilhoId; });
     if(qtd < somaLib(f)) return alert("Quantidade menor do que já foi liberado");
-    f.nome=nome; f.un=un; f.qtd=qtd; f.funcoes=funcoes; f.extra=document.getElementById("filhoExtra").checked; f.ocultarImpressao=document.getElementById("filhoOcultarImp").checked;
+    f.nome=nome; f.un=un; f.qtd=qtd; f.funcoes=funcoes; f.extra=document.getElementById("filhoExtra").checked;
     cancelarEdicaoFilho();
   } else {
-    db.filhos.push({id:Date.now(), paiId:paiSel, nome:nome, un:un, qtd:qtd, funcoes:funcoes, extra:document.getElementById("filhoExtra").checked, ocultarImpressao:document.getElementById("filhoOcultarImp").checked, liberacoes:[]});
+    db.filhos.push({id:Date.now(), paiId:paiSel, nome:nome, un:un, qtd:qtd, funcoes:funcoes, extra:document.getElementById("filhoExtra").checked, liberacoes:[]});
     document.getElementById("filhoNome").value = "";
     document.getElementById("filhoQtd").value = "";
   }
@@ -1025,7 +965,6 @@ function editarFilho(id){
   document.getElementById("filhoUn").value = f.un;
   document.getElementById("filhoQtd").value = f.qtd;
   document.getElementById("filhoExtra").checked = !!f.extra;
-  document.getElementById("filhoOcultarImp").checked = !!f.ocultarImpressao;
   preencherFuncoes(f.funcoes);
   document.getElementById("btnFilho").textContent = "Salvar filho";
   document.getElementById("btnCancelarFilho").classList.remove("hidden");
@@ -1035,7 +974,6 @@ function cancelarEdicaoFilho(){
   document.getElementById("filhoNome").value = "";
   document.getElementById("filhoQtd").value = "";
   document.getElementById("filhoExtra").checked = false;
-  document.getElementById("filhoOcultarImp").checked = false;
   preencherFuncoes({});
   document.getElementById("btnFilho").textContent = "Adicionar filho neste pai";
   document.getElementById("btnCancelarFilho").classList.add("hidden");
@@ -1227,7 +1165,7 @@ function todasMedicoesObra(){
   var id = store.obraId;
   var mapa = {};
   function add(m){
-    if(!m || m.deleted) return;
+    if(!m) return;
     var k = String(m.id||"")+"|"+String(m.chapa||"")+"|"+String(m.libId||"")+"|"+String(m.qtd||"")+"|"+String(m.valor||"");
     mapa[k] = m;
   }
@@ -1240,7 +1178,6 @@ function todasMedicoesObra(){
 }
 function medidoNoFilho(filhoId, funcao){
   return todasMedicoesObra().filter(function(m){
-    if(m.deleted) return false;
     if(m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra") return false;
     if(funcao && !mesmaFuncao(m.funcao, funcao)) return false;
     var f = (db.filhos||[]).find(function(x){ return String(x.id)===String(filhoId); });
@@ -1267,19 +1204,11 @@ function mesmoTipoHora(filho, m){
   return true;
 }
 function medidoNoTrecho(libId, funcao, filho){
-  var lib = null;
-  if(filho){
-    var pack = (filho.liberacoes||[]).slice();
-    if(typeof libsTodosMeses==="function") pack = pack.concat(libsTodosMeses(filho.id)||[]);
-    lib = pack.find(function(l){ return String(l.id)===String(libId); });
-  }
   return todasMedicoesObra().filter(function(m){
-    if(m.deleted) return false;
     if(m.tipo==="integracao" || m.tipo==="vtSabado") return false;
     if(funcao && !mesmaFuncao(m.funcao, funcao)) return false;
-    if(filho && !mesmoTipoHora(filho, m)) return false;
+    if(filho && String(m.filhoId||"")!==String(filho.id)) return false;
     if(String(m.libId)===String(libId)) return true;
-    if(filho && String(m.filhoId||"")===String(filho.id) && lib && m.trecho && String(m.trecho)===String(lib.trecho)) return true;
     return false;
   }).reduce(function(a,m){ return a + Number(m.qtd||0); },0);
 }
@@ -1305,14 +1234,14 @@ function saldosPorFuncao(f, lib){
 }
 
 
-async function lancarVales(){
+function lancarVales(){
   if(!sbOn()) return alert("Sem conexão com a nuvem. Não dá pra lançar.");
   if(!funcionarioAtual) return alert("Puxa a chapa primeiro");
   var qi = parseFloat(document.getElementById("qtdInt").value)||0;
   var qv = parseFloat(document.getElementById("qtdVt").value)||0;
   if(!qi && !qv) return alert("Informa a quantidade de Integração ou VT");
   function temExtra(tipo){
-    return db.medicoes.some(function(m){ return !m.deleted && m.chapa===funcionarioAtual.chapa && m.tipo===tipo && m.obraId===store.obraId; });
+    return db.medicoes.some(function(m){ return m.chapa===funcionarioAtual.chapa && m.tipo===tipo && m.obraId===store.obraId; });
   }
   var n = 0;
   if(qi && !temExtra("integracao")){
@@ -1354,27 +1283,16 @@ async function lancarVales(){
     n++;
   }
   if(!n) return alert("Essa chapa já tem Integração e VT lançados");
-  salvarDbNaObra();
-  if(sbOn()){
-    try {
-      await cloudPushStore();
-      alert("Lançado e salvo na nuvem."); addLog("Lançou medição · chapa "+(funcionarioAtual&&funcionarioAtual.chapa||"")+" · "+(t&&t.filho&&t.filho.nome||"")+" · qtd "+q);
-    } catch(e){
-      alert("Erro ao salvar na nuvem: "+e.message);
-    }
-  } else {
-    alert("Sem conexão com a nuvem. Lançamento ficou só neste aparelho.");
-  }
-  render();
+  save(); render();
 }
-async function lancar(libId){
+function lancar(libId){
   if(!sbOn()) return alert("Sem conexão com a nuvem. Não dá pra lançar.");
   if(!funcionarioAtual) return alert("Puxa a chapa primeiro");
   var q = parseFloat(document.getElementById("med-"+libId).value);
   var t = trechosLiberados(funcionarioAtual.funcao).find(function(x){ return String(x.lib.id)===String(libId); });
   if(!q || q<=0) return alert("Informa a quantidade");
   var jaTem = db.medicoes.some(function(m){
-    return !m.deleted && m.chapa===funcionarioAtual.chapa && m.libId===libId && m.obraId===store.obraId && !m.tipo;
+    return m.chapa===funcionarioAtual.chapa && m.libId===libId && m.obraId===store.obraId && !m.tipo;
   });
   if(jaTem) return alert("Essa chapa já tem lançamento neste trecho. Edita o existente.");
   if(q>t.saldo) return alert("Estoura o teto desta função neste trecho. Saldo "+t.saldo+" "+t.filho.un);
@@ -1382,7 +1300,6 @@ async function lancar(libId){
   if(!vu) return alert("Essa função não recebe neste item");
   db.medicoes.push({
     id: Date.now(),
-    updated_at: new Date().toISOString(),
     obraId: store.obraId,
     apontador: userAtual(),
     libId: libId,
@@ -1401,14 +1318,13 @@ async function lancar(libId){
   var qi = parseFloat(document.getElementById("qtdInt").value)||0;
   var qv = parseFloat(document.getElementById("qtdVt").value)||0;
   function acharExtra(tipo){
-    return db.medicoes.find(function(m){ return !m.deleted && m.chapa===funcionarioAtual.chapa && m.tipo===tipo && m.obraId===store.obraId; });
+    return db.medicoes.find(function(m){ return m.chapa===funcionarioAtual.chapa && m.tipo===tipo && m.obraId===store.obraId; });
   }
   if(qi){
     var ja = acharExtra("integracao");
-    if(ja){ ja.qtd = qi; ja.vu = PRECOS_EXTRA.integracao; ja.valor = qi*PRECOS_EXTRA.integracao; ja.updated_at = new Date().toISOString(); ja.deleted = false; }
+    if(ja){ ja.qtd = qi; ja.vu = PRECOS_EXTRA.integracao; ja.valor = qi*PRECOS_EXTRA.integracao; }
     else db.medicoes.push({
       id: Date.now()+1,
-      updated_at: new Date().toISOString(),
       obraId: store.obraId,
       tipo: "integracao",
       funcionario: funcionarioAtual.nome,
@@ -1425,10 +1341,9 @@ async function lancar(libId){
   }
   if(qv){
     var ja2 = acharExtra("vtSabado");
-    if(ja2){ ja2.qtd = qv; ja2.vu = PRECOS_EXTRA.vtSabado; ja2.valor = qv*PRECOS_EXTRA.vtSabado; ja2.updated_at = new Date().toISOString(); ja2.deleted = false; }
+    if(ja2){ ja2.qtd = qv; ja2.vu = PRECOS_EXTRA.vtSabado; ja2.valor = qv*PRECOS_EXTRA.vtSabado; }
     else db.medicoes.push({
       id: Date.now()+2,
-      updated_at: new Date().toISOString(),
       obraId: store.obraId,
       tipo: "vtSabado",
       funcionario: funcionarioAtual.nome,
@@ -1444,18 +1359,7 @@ async function lancar(libId){
     document.getElementById("qtdVt").value = "";
   }
   document.getElementById("med-"+libId).value = "";
-  salvarDbNaObra();
-  if(sbOn()){
-    try {
-      await cloudPushStore();
-      alert("Lançado e salvo na nuvem.");
-    } catch(e){
-      alert("Erro ao salvar na nuvem: "+e.message);
-    }
-  } else {
-    alert("Sem conexão com a nuvem. Lançamento ficou só neste aparelho.");
-  }
-  render();
+  save(); render();
 }
 function editarMed(id){
   var m = db.medicoes.find(function(x){ return x.id===id; });
@@ -1482,27 +1386,21 @@ function editarMed(id){
     if(q>saldo) return alert("Estoura o teto do trecho. Máximo "+saldo);
     m.qtd = q;
     m.valor = q * (m.vu||0);
-    m.updated_at = new Date().toISOString();
   } else {
     m.qtd = q;
     if(m.tipo==="integracao") { m.vu = PRECOS_EXTRA.integracao; m.valor = q*m.vu; }
     if(m.tipo==="vtSabado") { m.vu = PRECOS_EXTRA.vtSabado; m.valor = q*m.vu; }
-    m.updated_at = new Date().toISOString();
   }
   save(); render();
 }
 async function excluirMed(id){
   if(!confirm("Excluir este lançamento?")) return;
-  var m = (db.medicoes||[]).find(function(x){ return x.id===id; });
-  if(!m) return alert("Lançamento não encontrado.");
-  m.deleted = true;
-  m.updated_at = new Date().toISOString();
-  m.deleted_by = (sessao&&sessao.user)||"";
+  db.medicoes = db.medicoes.filter(function(m){ return m.id!==id; });
   salvarDbNaObra();
   if(sbOn()){
     try {
       await cloudPushStore();
-      alert("Excluído e salvo na nuvem."); addLog("Excluiu lançamento id "+id);
+      alert("Excluído e salvo na nuvem.");
     } catch(e){
       alert("Erro ao salvar na nuvem: "+e.message);
     }
@@ -1543,7 +1441,7 @@ function renderEngsObra(){
   var engs = (o && o.engs) ? o.engs : [];
   box.innerHTML = engs.length ? engs.map(function(a){
     var key = String(a).replace(/[^a-zA-Z0-9_-]/g,"");
-    return '<span class="inline-flex items-center gap-2 bg-slate-100 border border-slate-300 rounded-full px-3 py-1">'+a+' <button type="button" class="eng-x text-slate-400 hover:text-red-600" data-eng="'+key+'">x</button></span>';
+    return '<span class="inline-flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-full px-3 py-1">'+a+' <button type="button" class="eng-x text-slate-400 hover:text-red-600" data-eng="'+key+'">x</button></span>';
   }).join("") : '<span class="text-xs text-slate-400">Nenhum engenheiro extra. Com a lista vazia, todo engenheiro vê a obra.</span>';
   box.querySelectorAll(".eng-x").forEach(function(btn){
     btn.onclick = function(){ desvincularEngObra(btn.getAttribute("data-eng")); };
@@ -1648,10 +1546,7 @@ function excluirObra(id, ev){
   if(ev) ev.stopPropagation();
   var o = (store.obras||[]).find(function(x){ return x.id===id; });
   if(!o) return;
-  if(!sessao || sessao.role!=="admin") return alert("Só admin exclui obra.");
-  var conf = prompt("Para excluir a obra \""+o.nome+"\", digite o nome dela exatamente:");
-  if(!conf || conf.trim().toLowerCase()!==String(o.nome||"").trim().toLowerCase()) return alert("Nome não confere. Cancelado.");
-  if(!confirm("Confirma exclusão permanente da obra "+o.nome+" e de todas as medições?")) return;
+  if(!confirm("Excluir a obra "+o.nome+" e as medições dela?")) return;
   store.obras = store.obras.filter(function(x){ return x.id!==id; });
   Object.keys(store.dados||{}).forEach(function(k){
     if(k.indexOf(id+"|")===0) delete store.dados[k];
@@ -1677,11 +1572,11 @@ function renderCadastro(){
     lista.forEach(function(f){ porUn[f.un]=(porUn[f.un]||0)+f.qtd; });
     var qtdTxt = Object.keys(porUn).map(function(u){ return porUn[u].toLocaleString("pt-BR")+" "+u; }).join(" + ") || "sem qtde";
     var ativo = p.id===paiSel;
-    return '<div class="flex items-center gap-1 rounded-lg '+(ativo?"bg-slate-600 text-white":"hover:bg-slate-50")+'">'+
+    return '<div class="flex items-center gap-1 rounded-lg '+(ativo?"bg-blue-600 text-white":"hover:bg-slate-50")+'">'+
       '<button onclick="paiSel='+p.id+';render()" class="flex-1 text-left px-3 py-2 text-sm">'+
         '<span class="block font-medium">'+p.nome+'</span>'+
-        '<span class="block text-[11px] '+(ativo?"text-slate-200":"text-slate-500")+'">'+money(valor)+'</span>'+
-        '<span class="block text-[11px] '+(ativo?"text-slate-200":"text-slate-400")+'">'+qtdTxt+'</span>'+
+        '<span class="block text-[11px] '+(ativo?"text-blue-100":"text-slate-500")+'">'+money(valor)+'</span>'+
+        '<span class="block text-[11px] '+(ativo?"text-blue-100":"text-slate-400")+'">'+qtdTxt+'</span>'+
       '</button>'+
       '<button onclick="editarPai('+p.id+',event)" class="px-2">✎</button>'+
       '<button onclick="excluirPai('+p.id+',event)" class="px-2">✕</button></div>';
@@ -1702,7 +1597,7 @@ function renderCadastro(){
         '<p class="font-medium">'+f.nome+'</p>'+
         '<p class="text-xs text-slate-500">'+f.qtd.toLocaleString("pt-BR")+" "+f.un+" · liberado "+somaLib(f)+" "+f.un+'</p></div>'+
         '<div class="text-right"><p class="text-sm font-semibold">'+money(tot(f.funcoes,f.qtd))+'</p>'+
-        '<button onclick="editarFilho('+f.id+')" class="text-[11px] text-slate-600 mr-2">editar</button>'+
+        '<button onclick="editarFilho('+f.id+')" class="text-[11px] text-blue-600 mr-2">editar</button>'+
         '<button onclick="removerFilho('+f.id+')" class="text-[11px] text-slate-400">excluir</button></div></div>'+
         '<div class="flex flex-wrap gap-1 mt-2">'+ativas(f.funcoes).map(function(x){ return '<span class="text-[11px] bg-slate-50 border rounded-full px-2 py-1">'+x[0]+" "+money(x[1])+"/"+f.un+"</span>"; }).join("")+"</div></div>";
     }).join("");
@@ -1778,7 +1673,7 @@ function renderLiberacao(){
             var pagoL = medidoMaxLib(f, l);
             var restoL = Math.max(0, Number(l.qtd||0)-pagoL);
             var acoes = '<span>'+
-              (desteMes?'<button onclick="editarLib('+f.id+','+l.id+')" class="text-slate-600 mr-2">editar</button><button onclick="excluirLib('+f.id+','+l.id+')" class="text-slate-400 mr-2">excluir</button>':'<span class="text-slate-400 mr-2">mês ant.</span>')+
+              (desteMes?'<button onclick="editarLib('+f.id+','+l.id+')" class="text-blue-600 mr-2">editar</button><button onclick="excluirLib('+f.id+','+l.id+')" class="text-slate-400 mr-2">excluir</button>':'<span class="text-slate-400 mr-2">mês ant.</span>')+
               (restoL>0.0001 && podeAprovar()?'<button onclick="devolverRestante('+f.id+','+l.id+')" class="text-amber-700 font-medium">devolver '+qtdFmt(restoL)+'</button>':'')+
               '</span>';
             return '<div class="flex items-center justify-between text-xs bg-slate-50 border rounded-lg px-3 py-2 mt-1"><span><b>'+l.trecho+"</b> · "+qtdFmt(l.qtd)+" "+f.un+" · pago "+qtdFmt(pagoL)+tag+'</span>'+acoes+'</div>';
@@ -1793,13 +1688,13 @@ function renderLiberacao(){
                 ? '<span class="text-[11px] text-slate-400 shrink-0">formulário aberto</span>'
                 : '<div class="flex gap-2 shrink-0">'+
                   (podeAprovar()?'<button type="button" onclick="devolverRestosFilho('+f.id+')" class="text-xs font-medium border border-amber-400 text-amber-800 bg-amber-50 px-3 py-1.5 rounded-lg">Devolver restos</button>':'')+
-                  '<button type="button" onclick="window._formExp=window._formExp||{};window._formExp['+p.id+']=true;renderLiberacao();setTimeout(function(){var el=document.getElementById(\'trecho-'+f.id+'\');if(el)el.focus();},50)" class="inline-flex items-center gap-1.5 text-xs font-medium bg-slate-600 hover:bg-slate-700 text-white px-3 py-1.5 rounded-lg shadow-sm">Liberar <span aria-hidden="true">→</span></button></div>')+
+                  '<button type="button" onclick="window._formExp=window._formExp||{};window._formExp['+p.id+']=true;renderLiberacao();setTimeout(function(){var el=document.getElementById(\'trecho-'+f.id+'\');if(el)el.focus();},50)" class="inline-flex items-center gap-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg shadow-sm">Liberar <span aria-hidden="true">→</span></button></div>')+
             '</div>'+
-            '<div class="h-2 bg-slate-100 rounded-full mt-2.5"><div class="h-full bg-slate-600 rounded-full" style="width:'+pct+'%"></div></div>';
+            '<div class="h-2 bg-slate-100 rounded-full mt-2.5"><div class="h-full bg-blue-600 rounded-full" style="width:'+pct+'%"></div></div>';
 var form = aberto ? (
             '<div class="mt-3">'+
               '<div class="grid md:grid-cols-3 gap-2 mb-2"><input id="trecho-'+f.id+'" placeholder="Ex: Trecho B" class="border rounded-lg px-3 py-2 text-sm md:col-span-2" /><input id="lib-'+f.id+'" type="number" placeholder="Qtde" class="border rounded-lg px-3 py-2 text-sm" /></div>'+
-              '<button type="button" onclick="liberar('+f.id+');return false" class="bg-slate-600 text-white text-sm px-3 py-2 rounded-lg mb-2">Liberar trecho</button>'+
+              '<button type="button" onclick="liberar('+f.id+');return false" class="bg-blue-600 text-white text-sm px-3 py-2 rounded-lg mb-2">Liberar trecho</button>'+
               (linhas || '<p class="text-[11px] text-slate-400">Nenhum trecho liberado.</p>')+
             '</div>'
           ) : (linhas ? '<div class="mt-2 space-y-1">'+linhas+'</div>' : '');
@@ -1837,7 +1732,7 @@ function medPertenceObra(m){
   return itemExisteNaObra(m);
 }
 function medicoesDaObra(){
-  return medicoesAtivas(db.medicoes||[]).filter(medPertenceObra);
+  return (db.medicoes||[]).filter(medPertenceObra);
 }
 function renderLancamento(){
   mostrarPeriodoServente();
@@ -1909,7 +1804,7 @@ function renderLancamento(){
         else if(m.tipo==="extra") det = "Integração "+(m.integracao||0)+" · VT sábado "+(m.vtSabado||0);
         else det = m.pai+" · "+m.item+" · "+m.trecho+" · "+m.qtd;
         if(m.periodoTrabalho) det += " · trabalho "+labelPeriodoTrabalho(m.periodoTrabalho);
-        return '<div class="flex justify-between gap-3 py-2 border-t text-sm"><div><p>'+det+'</p></div><div class="text-right"><p>'+money(m.valor)+'</p><button onclick="editarMed('+m.id+')" class="text-[11px] text-slate-600 mr-2">✎ editar</button><button onclick="excluirMed('+m.id+')" class="text-[11px] text-slate-400">excluir</button></div></div>';
+        return '<div class="flex justify-between gap-3 py-2 border-t text-sm"><div><p>'+det+'</p></div><div class="text-right"><p>'+money(m.valor)+'</p><button onclick="editarMed('+m.id+')" class="text-[11px] text-blue-600 mr-2">✎ editar</button><button onclick="excluirMed('+m.id+')" class="text-[11px] text-slate-400">excluir</button></div></div>';
       }).join("");
       return '<div class="border-t first:border-0">'+
         '<button onclick="toggleFunc(\''+sid+'\')" class="w-full flex justify-between items-center px-3 py-3 text-left hover:bg-slate-50">'+
@@ -1950,26 +1845,12 @@ function seloEng(ap, chapa, tot){
     '</div>';
 }
 function htmlFolha(chapa, meds, ap){
-  // só ativos + dedup pra não repetir serviço / Integração / VT
-  meds = dedupMedicoes((meds||[]).filter(function(m){ return m && !m.deleted; }));
   var o = dadosObraAtual();
   var nome = (meds[0]&&meds[0].funcionario)||"";
   var funcao = (meds[0]&&meds[0].funcao)||"";
-  var serv = meds.filter(function(m){
-    if(m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra") return false;
-    var filho = (db.filhos||[]).find(function(f){ return String(f.id)===String(m.filhoId) || (m.item && String(f.nome).trim()===String(m.item).trim()); });
-    if(filho && filho.ocultarImpressao) return false;
-    return true;
-  });
+  var serv = meds.filter(function(m){ return !m.tipo || (m.tipo!=="integracao" && m.tipo!=="vtSabado" && m.tipo!=="extra"); });
   var extras = meds.filter(function(m){ return m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra"; });
-  // garante 1 de cada tipo de vale
-  var extrasUnicos = {};
-  extras.forEach(function(m){
-    var k = m.tipo || m.item || "";
-    if(!extrasUnicos[k] || (m.updated_at||"") > (extrasUnicos[k].updated_at||"")) extrasUnicos[k] = m;
-  });
-  extras = Object.keys(extrasUnicos).map(function(k){ return extrasUnicos[k]; });
-  var tot = serv.concat(extras).reduce(function(a,m){ return a+Number(m.valor||0); },0);
+  var tot = meds.reduce(function(a,m){ return a+Number(m.valor||0); },0);
   var linhas = serv.map(function(m,i){
     return "<tr><td>"+(i+1)+"</td><td>"+(m.pai||"")+"</td><td>"+(m.item||"")+"</td><td>"+(m.trecho||"-")+"</td><td>"+(m.qtd||"")+" "+(m.un||"")+"</td><td>"+money(m.vu||0)+"</td><td>"+money(m.valor)+"</td></tr>";
   }).join("");
@@ -2045,7 +1926,6 @@ function carimboAprovacao(){
   };
 }
 function aprovarMedicao(chapa, silencioso){
-  addLog("Aprovou medição chapa "+chapa);
   if(!podeAprovar()) return alert("Só engenheiro/admin aprova");
   db.aprovacoes = db.aprovacoes || {};
   db.aprovacoes[String(chapa)] = carimboAprovacao();
@@ -2074,29 +1954,11 @@ function marcarGrupo(fn, on){
   });
   renderFechar();
 }
-function chapasVisiveisAgora(){
-  var filtro = window._resumoFiltro || "";
-  var vistos = {};
-  var out = [];
-  (db.medicoes||[]).forEach(function(m){
-    if(!medPertenceObra(m)) return;
-    var c = String(m.chapa||"");
-    if(!c || vistos[c]) return;
-    if(filtro && String(m.funcao||"")!==String(filtro)) return;
-    vistos[c] = true;
-    out.push(c);
-  });
-  return out;
-}
 function aprovarSelecionadas(){
   var s = selAprov();
-  var visiveis = {};
-  chapasVisiveisAgora().forEach(function(c){ visiveis[c] = true; });
-  var chapas = Object.keys(s).filter(function(c){
-    return s[c] && visiveis[c] && !aprovacaoChapa(c);
-  });
-  if(!chapas.length) return alert("Marca as medições pendentes que estão visíveis agora.");
-  aprovarLista(chapas, "as selecionadas (visíveis agora)");
+  var chapas = Object.keys(s).filter(function(c){ return s[c] && !aprovacaoChapa(c); });
+  if(!chapas.length) return alert("Marca as medições pendentes que quer aprovar.");
+  aprovarLista(chapas, "as selecionadas");
   window._selAprov = {};
 }
 function chapasPendentes(funcaoFiltro){
@@ -2114,11 +1976,11 @@ function chapasPendentes(funcaoFiltro){
 function aprovarLista(chapas, rotulo){
   if(!podeAprovar()) return alert("Só engenheiro/admin aprova");
   if(!chapas.length) return alert("Não tem medição pendente"+(rotulo?(" em "+rotulo):""));
-  if(!confirm("Aprovar "+chapas.length+" funcionário(s)/chapa(s)"+(rotulo?(" — "+rotulo):"")+"?")) return;
+  if(!confirm("Aprovar "+chapas.length+" medição(ões)"+(rotulo?(" de "+rotulo):"")+"?")) return;
   chapas.forEach(function(c){ aprovarMedicao(c, true); });
   save();
   render();
-  alert(chapas.length+" funcionário(s)/chapa(s) aprovados. Sincroniza a nuvem pra o apontador ver.");
+  alert(chapas.length+" medição(ões) aprovadas. Sincroniza a nuvem pra o apontador ver.");
 }
 function aprovarTodasPendentes(){
   var filtro = window._resumoFiltro || "";
@@ -2133,20 +1995,15 @@ function reprovarMedicao(chapa){
   delete db.aprovacoes[String(chapa)];
   save(); render();
 }
-function medsParaImpressao(){
-  return medicoesAtivas(db.medicoes||[]).filter(function(m){
-    return typeof medPertenceObra==="function" ? medPertenceObra(m) : true;
-  });
-}
 function imprimirFolha(chapa){
-  var meds = medsParaImpressao().filter(function(m){ return String(m.chapa)===String(chapa); });
+  var meds = (db.medicoes||[]).filter(function(m){ return String(m.chapa)===String(chapa); });
   if(!meds.length) return alert("Sem lançamento nessa chapa");
   var ap = aprovacaoChapa(chapa);
   if(!ap) return alert("Engenharia ainda não aprovou esta medição. Não imprime.");
   abrirImpressao(htmlFolha(chapa, meds, ap));
 }
 function imprimirTodasFolhas(){
-  var meds = medsParaImpressao();
+  var meds = medicoesDaObra();
   var chapas = [];
   meds.forEach(function(m){
     var c = String(m.chapa||"");
@@ -2300,7 +2157,7 @@ function renderFechar(){
   var chips = '<button onclick="filtrarResumo(\'\')" class="text-xs px-3 py-1.5 rounded-full border '+(filtro===""?"bg-slate-800 text-white border-slate-800":"bg-white text-slate-600")+'">Todas</button>';
   funcoes.forEach(function(fn){
     var n = Object.keys(porFuncao[fn]).length;
-    chips += '<button onclick="filtrarResumo(\''+fn+'\')" class="text-xs px-3 py-1.5 rounded-full border '+(filtro===fn?"bg-slate-600 text-white border-slate-600":"bg-white text-slate-600")+'">'+fn+' · '+n+'</button>';
+    chips += '<button onclick="filtrarResumo(\''+fn+'\')" class="text-xs px-3 py-1.5 rounded-full border '+(filtro===fn?"bg-blue-600 text-white border-blue-600":"bg-white text-slate-600")+'">'+fn+' · '+n+'</button>';
   });
   document.getElementById("fecFiltros").innerHTML = chips;
   var btAll = document.getElementById("btnAprovarTodas");
@@ -2331,7 +2188,7 @@ function renderFechar(){
       var btAprov = podeAprovar()
         ? (ap
             ? '<button onclick="event.stopPropagation();reprovarMedicao(\''+g.chapa+'\')" class="text-xs px-2 py-1 rounded bg-emerald-600 text-white">Aprovada · desfazer</button>'
-            : '<button onclick="event.stopPropagation();aprovarMedicao(\''+g.chapa+'\')" class="text-xs px-2 py-1 rounded bg-slate-600 text-white">Aprovar medição</button>')
+            : '<button onclick="event.stopPropagation();aprovarMedicao(\''+g.chapa+'\')" class="text-xs px-2 py-1 rounded bg-blue-600 text-white">Aprovar medição</button>')
         : (ap ? '<span class="text-xs text-emerald-700 font-medium">Aprovada</span>' : '<span class="text-xs text-amber-600">Aguardando engenharia</span>');
       var porObra = {};
       g.itens.forEach(function(m){
@@ -2373,7 +2230,7 @@ function renderFechar(){
           })()+'</p></div>'+
             '<div class="col-span-4 md:col-span-2 text-sm"><p class="text-[10px] text-slate-400">Tarefa</p><p class="font-semibold">'+money(c.tarefa)+'</p></div>'+
             '<div class="col-span-4 md:col-span-2 text-sm"><p class="text-[10px] text-emerald-600">Prêmio</p><p class="font-semibold text-emerald-700">'+money(c.premio)+'</p></div>'+
-            '<div class="col-span-4 md:col-span-2 text-sm md:text-right"><p class="text-[10px] text-slate-400">Custo M.O.</p><p class="font-semibold text-slate-700">'+money(c.custo)+'</p></div>'+
+            '<div class="col-span-4 md:col-span-2 text-sm md:text-right"><p class="text-[10px] text-slate-400">Custo M.O.</p><p class="font-semibold text-blue-700">'+money(c.custo)+'</p></div>'+
             '<div class="col-span-12 md:col-span-1 text-right">'+btAprov+'</div>'+
           '</div></button>'+
         '<div id="'+sid+'" class="hidden px-4 pb-4 bg-slate-50 border-t">'+
@@ -2385,7 +2242,7 @@ function renderFechar(){
             '<div class="bg-white border rounded-lg p-2"><p class="text-slate-400">Prêmio (h)</p><p class="font-semibold text-emerald-700">'+money(c.premio)+'</p></div>'+
             '<div class="bg-white border rounded-lg p-2"><p class="text-slate-400">Adiantamento (40% d)</p><p class="font-semibold">'+money(c.vale)+'</p></div>'+
             '<div class="bg-white border rounded-lg p-2"><p class="text-slate-400">Folha de pagamento (e − adiant.)</p><p class="font-semibold">'+money(c.folha)+'</p></div>'+
-            '<div class="bg-white border rounded-lg p-2"><p class="text-slate-400">Custo total M.O.</p><p class="font-semibold text-slate-700">'+money(c.custo)+'</p></div>'+
+            '<div class="bg-white border rounded-lg p-2"><p class="text-slate-400">Custo total M.O.</p><p class="font-semibold text-blue-700">'+money(c.custo)+'</p></div>'+
           '</div></div></div>';
     }).join("");
 
@@ -2394,7 +2251,7 @@ function renderFechar(){
         '<div><p class="text-[11px] uppercase tracking-wide text-slate-300">Função</p><h3 class="font-bold text-lg">'+fn+'</h3><p class="text-[11px] text-slate-300">'+keys.length+' funcionário(s)</p></div>'+
         (podeAprovar()?'<div class="flex gap-2">'+
           '<button type="button" onclick="marcarGrupo(\''+String(fn).replace(/'/g,"")+'\',true)" class="text-xs bg-white/15 text-white px-3 py-1.5 rounded-lg">Marcar '+fn+'</button>'+
-          '<button type="button" onclick="aprovarFuncao(\''+String(fn).replace(/'/g,"")+'\')" class="text-xs bg-slate-500 hover:bg-slate-400 text-white px-3 py-1.5 rounded-lg">Aprovar todos '+fn+'</button></div>':'')+
+          '<button type="button" onclick="aprovarFuncao(\''+String(fn).replace(/'/g,"")+'\')" class="text-xs bg-blue-500 hover:bg-blue-400 text-white px-3 py-1.5 rounded-lg">Aprovar todos '+fn+'</button></div>':'')+
         '<div class="flex gap-6 text-right text-sm">'+
           '<div><p class="text-[10px] text-slate-300">Tarefa</p><p class="font-semibold">'+money(subT)+'</p></div>'+
           '<div><p class="text-[10px] text-emerald-300">Prêmio</p><p class="font-semibold text-emerald-300">'+money(subP)+'</p></div>'+
@@ -2571,22 +2428,8 @@ function loadLogs(){
 }
 function addLog(txt){
   var logs = loadLogs();
-  logs.unshift({t:new Date().toLocaleString("pt-BR"), txt:txt, who:(sessao&&sessao.user)||"-", obra:store&&store.obraId||"", periodo:store&&store.periodo||""});
-  localStorage.setItem("engecap_mo_logs", JSON.stringify(logs.slice(0,500)));
-  // atualiza a tela de admin se estiver aberta
-  if(typeof renderAdmin==="function" && document.getElementById("viewAdmin") && !document.getElementById("viewAdmin").classList.contains("hidden")){
-    try{ renderAdmin(); }catch(e){}
-  }
-  // tenta gravar na nuvem (não bloqueia)
-  if(sbOn() && sb){
-    sb.from("mo_logs").insert({
-      txt: txt,
-      who: (sessao&&sessao.user)||"-",
-      obra_id: store&&store.obraId||null,
-      periodo: store&&store.periodo||null,
-      created_at: new Date().toISOString()
-    }).then(function(){}).catch(function(){});
-  }
+  logs.unshift({t:new Date().toLocaleString("pt-BR"), txt:txt, who:(sessao&&sessao.user)||"-"});
+  localStorage.setItem("engecap_mo_logs", JSON.stringify(logs.slice(0,200)));
 }
 
 function criarUser(ev){
@@ -2654,77 +2497,6 @@ function excluirUser(id){
   addLog("Excluiu usuário "+u.user);
   renderAdmin();
 }
-
-
-function checarBackupDiario(){
-  if(!sessao || sessao.role!=="admin") return;
-  var last = localStorage.getItem("engecap_mo_last_backup");
-  var agora = Date.now();
-  var umDia = 24*60*60*1000;
-  if(!last || (agora - new Date(last).getTime()) > umDia){
-    if(confirm("Faz mais de 24h que não baixa backup. Quer baixar agora?")){
-      baixarBackup();
-    }
-  }
-}
-
-
-async function restaurarBackup(ev){
-  var file = ev.target.files && ev.target.files[0];
-  if(!file) return;
-  if(!confirm("Restaurar este backup? Isso vai substituir os dados atuais na nuvem pelos do arquivo.")) return;
-  try{
-    var text = await file.text();
-    var data = JSON.parse(text);
-    if(!data.dados && !data.obras) return alert("Arquivo inválido.");
-    if(!sbOn()) return alert("Sem conexão com a nuvem.");
-    // aplica no store e empurra
-    if(data.obras) store.obras = data.obras;
-    if(data.cadastro) store.cadastro = data.cadastro;
-    if(data.dados) store.dados = data.dados;
-    await cloudPushStore();
-    await cloudPullStore();
-    if(store.obraId) carregarDbDaObra();
-    render();
-    var msg = document.getElementById("backupMsg");
-    if(msg) msg.textContent = "Backup restaurado: " + file.name;
-    alert("Backup restaurado na nuvem.");
-    if(typeof addLog==="function") addLog("Restaurou backup " + file.name);
-  }catch(e){
-    alert("Erro ao restaurar: " + e.message);
-  }
-  ev.target.value = "";
-}
-
-function baixarBackup(){
-  try{
-    salvarDbNaObra();
-    var payload = {
-      exportadoEm: new Date().toISOString(),
-      obras: store.obras || [],
-      cadastro: store.cadastro || {},
-      dados: store.dados || {},
-      funcionarios: (typeof FUNCIONARIOS!=="undefined" ? FUNCIONARIOS : []),
-      periodoAtual: store.periodo || "",
-      obraAtual: store.obraId || ""
-    };
-    var blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
-    var a = document.createElement("a");
-    var nome = "backup-engecap-mo-" + new Date().toISOString().slice(0,10) + ".json";
-    a.href = URL.createObjectURL(blob);
-    a.download = nome;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    var msg = document.getElementById("backupMsg");
-    if(msg) msg.textContent = "Backup baixado: " + nome;
-    localStorage.setItem("engecap_mo_last_backup", new Date().toISOString());
-    if(typeof addLog==="function") addLog("Baixou backup " + nome);
-  }catch(e){
-    alert("Erro ao gerar backup: " + e.message);
-  }
-}
-
 function renderAdmin(){
   var box = document.getElementById("listaUsers");
   if(!box) return;
@@ -2843,7 +2615,7 @@ function renderHome(){
     return;
   }
   box.innerHTML = obras.map(function(o){
-    return '<div class="bg-white rounded-2xl border-2 border-slate-200 p-5 hover:border-slate-400 relative">'+
+    return '<div class="bg-white rounded-2xl border-2 border-slate-200 p-5 hover:border-blue-400 relative">'+
       ((sessao && sessao.role==="admin")?'<button onclick="excluirObra(\''+o.id+'\',event)" class="absolute top-3 right-3 text-xs text-slate-400 hover:text-red-600">excluir</button>':'')+
       '<button onclick="abrirObra(\''+o.id+'\')" class="text-left w-full">'+
       '<p class="text-3xl mb-2">🏗️</p><p class="font-bold">'+o.nome+'</p>'+
@@ -2871,7 +2643,7 @@ function abrirObra(id){
   if(store.obraId && store.obraId !== id){
     salvarDbNaObra();
   }
-  store.obraId = id; addLog("Abriu obra "+id);
+  store.obraId = id;
   if(!store.periodo) store.periodo = "2026-08";
   function segue(){
     carregarDbDaObra();
@@ -2886,7 +2658,7 @@ function abrirObra(id){
 
 function trocarPeriodo(k){
   if(store.periodo && store.periodo !== k) salvarDbNaObra();
-  store.periodo = k; addLog("Trocou período para "+k);
+  store.periodo = k;
   function segue(){
     carregarDbDaObra();
     render();
@@ -2953,7 +2725,7 @@ function salvarDbNaObra(){
   store.cadastro[store.obraId] = {
     pais: JSON.parse(JSON.stringify(db.pais||[])),
     filhos: (db.filhos||[]).map(function(f){
-      return {id:f.id, paiId:f.paiId, nome:f.nome, un:f.un, qtd:f.qtd, funcoes:f.funcoes||{}, extra:!!f.extra, ocultarImpressao:!!f.ocultarImpressao};
+      return {id:f.id, paiId:f.paiId, nome:f.nome, un:f.un, qtd:f.qtd, funcoes:f.funcoes||{}, extra:!!f.extra};
     })
   };
   store.dados = store.dados || {};
@@ -2964,15 +2736,8 @@ function salvarDbNaObra(){
     if(m.obraId && m.obraId !== store.obraId) return false;
     return true;
   }));
-  var key = chaveDados();
-  var prev = store.dados[key] || {};
-  store.dados[key] = {
-    medicoes: medsLimpos,
-    libs: libs,
-    aprovacoes: db.aprovacoes||{},
-    _updated_at: prev._updated_at || ""
-  };
-  // não chama saveStore (que não persiste mais)
+  store.dados[chaveDados()] = { medicoes: medsLimpos, libs: libs, aprovacoes: db.aprovacoes||{} };
+  saveStore();
 }
 
 
@@ -3067,7 +2832,7 @@ function renderSaldo(){
         var medido = medidoNoFilho(f.id, x[0]);
         var saldo = teto - medido;
         var pct = teto ? Math.max(0, Math.min(100, Math.round(medido/teto*100))) : 0;
-        var cor = pct>=100 ? "bg-emerald-600" : pct>0 ? "bg-slate-600" : "bg-slate-300";
+        var cor = pct>=100 ? "bg-emerald-600" : pct>0 ? "bg-blue-600" : "bg-slate-300";
         totPrev += teto*vu;
         totPago += medido*vu;
         if(medido>maxMed) maxMed = medido;
