@@ -117,6 +117,10 @@
             <button type="button" onclick="enviarFuncionariosNuvem()" class="mt-2 bg-blue-600 text-white text-sm px-3 py-2 rounded-lg">Enviar lista para a nuvem</button>
             <p id="csvMsg" class="text-xs text-slate-500 mt-2"></p>
             <p id="nuvemStatus" class="text-xs text-slate-400 mt-1"></p>
+            <div class="mt-4 pt-3 border-t flex gap-2">
+              <button type="button" onclick="baixarBackup()" class="text-sm border px-3 py-2 rounded-lg">📥 Baixar backup</button>
+              <label class="text-sm border px-3 py-2 rounded-lg cursor-pointer">📤 Restaurar backup<input type="file" accept=".json" onchange="restaurarBackup(event)" class="hidden" /></label>
+            </div>
           </div>
           <div id="listaLogs" class="max-h-[420px] overflow-y-auto text-sm"></div>
         </section>
@@ -204,6 +208,10 @@
               <div class="md:col-span-3 flex items-center gap-2 pt-1">
                 <input id="filhoExtra" type="checkbox" class="w-4 h-4" />
                 <label for="filhoExtra" class="text-sm text-amber-700 font-medium">Serviço extra (não contratado)</label>
+              </div>
+              <div class="md:col-span-3 flex items-center gap-2">
+                <input id="filhoOcultar" type="checkbox" class="w-4 h-4" />
+                <label for="filhoOcultar" class="text-sm text-slate-600">Não aparecer na impressão</label>
               </div>
             </div>
             <div class="flex flex-wrap gap-2 justify-between">
@@ -949,10 +957,10 @@ function salvarFilho(){
   if(editandoFilhoId){
     var f = db.filhos.find(function(x){ return x.id===editandoFilhoId; });
     if(qtd < somaLib(f)) return alert("Quantidade menor do que já foi liberado");
-    f.nome=nome; f.un=un; f.qtd=qtd; f.funcoes=funcoes; f.extra=document.getElementById("filhoExtra").checked;
+    f.nome=nome; f.un=un; f.qtd=qtd; f.funcoes=funcoes; f.extra=document.getElementById("filhoExtra").checked; f.ocultarImpressao=document.getElementById("filhoOcultar").checked;
     cancelarEdicaoFilho();
   } else {
-    db.filhos.push({id:Date.now(), paiId:paiSel, nome:nome, un:un, qtd:qtd, funcoes:funcoes, extra:document.getElementById("filhoExtra").checked, liberacoes:[]});
+    db.filhos.push({id:Date.now(), paiId:paiSel, nome:nome, un:un, qtd:qtd, funcoes:funcoes, extra:document.getElementById("filhoExtra").checked, ocultarImpressao:document.getElementById("filhoOcultar").checked, liberacoes:[]});
     document.getElementById("filhoNome").value = "";
     document.getElementById("filhoQtd").value = "";
   }
@@ -1180,11 +1188,8 @@ function medidoNoFilho(filhoId, funcao){
   return todasMedicoesObra().filter(function(m){
     if(m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra") return false;
     if(funcao && !mesmaFuncao(m.funcao, funcao)) return false;
-    var f = (db.filhos||[]).find(function(x){ return String(x.id)===String(filhoId); });
-    if(f && !mesmoTipoHora(f, m)) return false;
-    if(String(m.filhoId||"")===String(filhoId)) return true;
-    if(f && m.item && String(m.item).trim()===String(f.nome).trim()) return true;
-    return false;
+    if(String(m.filhoId||"")!==String(filhoId)) return false;
+    return true;
   }).reduce(function(a,m){ return a + Number(m.qtd||0); },0);
 }
 function ehHoraExtra(txt){
@@ -1313,7 +1318,8 @@ function lancar(libId){
     trecho: t.lib.trecho,
     item: t.filho.nome,
     pai: t.pai.nome,
-    periodoTrabalho: periodoServenteAtual()
+    periodoTrabalho: periodoServenteAtual(),
+    ocultarImpressao: !!t.filho.ocultarImpressao
   });
   var qi = parseFloat(document.getElementById("qtdInt").value)||0;
   var qv = parseFloat(document.getElementById("qtdVt").value)||0;
@@ -1360,6 +1366,10 @@ function lancar(libId){
   }
   document.getElementById("med-"+libId).value = "";
   save(); render();
+}
+function toggleOcultar(id, val){
+  var m = db.medicoes.find(function(x){ return x.id===id; });
+  if(m){ m.ocultarImpressao = val; save(); }
 }
 function editarMed(id){
   var m = db.medicoes.find(function(x){ return x.id===id; });
@@ -1804,7 +1814,8 @@ function renderLancamento(){
         else if(m.tipo==="extra") det = "Integração "+(m.integracao||0)+" · VT sábado "+(m.vtSabado||0);
         else det = m.pai+" · "+m.item+" · "+m.trecho+" · "+m.qtd;
         if(m.periodoTrabalho) det += " · trabalho "+labelPeriodoTrabalho(m.periodoTrabalho);
-        return '<div class="flex justify-between gap-3 py-2 border-t text-sm"><div><p>'+det+'</p></div><div class="text-right"><p>'+money(m.valor)+'</p><button onclick="editarMed('+m.id+')" class="text-[11px] text-blue-600 mr-2">✎ editar</button><button onclick="excluirMed('+m.id+')" class="text-[11px] text-slate-400">excluir</button></div></div>';
+        var oculta = m.ocultarImpressao ? "checked" : "";
+        return '<div class="flex justify-between gap-3 py-2 border-t text-sm"><div class="flex items-start gap-2"><input type="checkbox" '+oculta+' onchange="toggleOcultar('+m.id+',this.checked)" class="mt-1" title="Não aparecer na impressão" /><div><p>'+det+'</p></div></div><div class="text-right"><p>'+money(m.valor)+'</p><button onclick="editarMed('+m.id+')" class="text-[11px] text-blue-600 mr-2">✎ editar</button><button onclick="excluirMed('+m.id+')" class="text-[11px] text-slate-400">excluir</button></div></div>';
       }).join("");
       return '<div class="border-t first:border-0">'+
         '<button onclick="toggleFunc(\''+sid+'\')" class="w-full flex justify-between items-center px-3 py-3 text-left hover:bg-slate-50">'+
@@ -1848,8 +1859,8 @@ function htmlFolha(chapa, meds, ap){
   var o = dadosObraAtual();
   var nome = (meds[0]&&meds[0].funcionario)||"";
   var funcao = (meds[0]&&meds[0].funcao)||"";
-  var serv = meds.filter(function(m){ return !m.tipo || (m.tipo!=="integracao" && m.tipo!=="vtSabado" && m.tipo!=="extra"); });
-  var extras = meds.filter(function(m){ return m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra"; });
+  var serv = meds.filter(function(m){ return !m.ocultarImpressao && (!m.tipo || (m.tipo!=="integracao" && m.tipo!=="vtSabado" && m.tipo!=="extra")); });
+  var extras = meds.filter(function(m){ return !m.ocultarImpressao && (m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra"); });
   var tot = meds.reduce(function(a,m){ return a+Number(m.valor||0); },0);
   var linhas = serv.map(function(m,i){
     return "<tr><td>"+(i+1)+"</td><td>"+(m.pai||"")+"</td><td>"+(m.item||"")+"</td><td>"+(m.trecho||"-")+"</td><td>"+(m.qtd||"")+" "+(m.un||"")+"</td><td>"+money(m.vu||0)+"</td><td>"+money(m.valor)+"</td></tr>";
@@ -2496,6 +2507,30 @@ function excluirUser(id){
   saveUsers();
   addLog("Excluiu usuário "+u.user);
   renderAdmin();
+}
+function baixarBackup(){
+  var blob = new Blob([JSON.stringify(store, null, 2)], {type:"application/json"});
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "engecap-backup-"+new Date().toISOString().slice(0,10)+".json";
+  a.click();
+}
+function restaurarBackup(e){
+  var f = e.target.files[0];
+  if(!f) return;
+  var r = new FileReader();
+  r.onload = function(){
+    try{
+      var data = JSON.parse(r.result);
+      if(!data.obras) return alert("Arquivo inválido");
+      if(!confirm("Restaurar este backup? Os dados atuais serão substituídos.")) return;
+      store = data;
+      localStorage.setItem(STORE_KEY, JSON.stringify(store));
+      alert("Backup restaurado. Recarregando...");
+      location.reload();
+    }catch(err){ alert("Erro ao ler arquivo"); }
+  };
+  r.readAsText(f);
 }
 function renderAdmin(){
   var box = document.getElementById("listaUsers");
