@@ -57,6 +57,7 @@
         <button type="button" onclick="sincronizarNuvem()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-300 hover:bg-white/10">☁️ Sincronizar nuvem</button>
         <button onclick="resetar()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-400 hover:bg-white/10">♻️ Reset dados</button>
         <button onclick="sair()" id="btnSair" class="hidden w-full text-left px-3 py-2 rounded-xl text-sm bg-rose-500/80 hover:bg-rose-500">🚪 Sair</button>
+        <p class="text-[10px] text-slate-500 text-center pt-2">versão 2.5</p>
       </div>
     </aside>
     <div class="flex-1 max-w-6xl mx-auto py-6 px-4 w-full">
@@ -569,7 +570,8 @@ async function cloudPullStore(){
   var localDados = JSON.parse(JSON.stringify(store.dados||{}));
   var obras = await sb.from("mo_obras").select("*").eq("active", true);
   if(obras.error) throw new Error(obras.error.message);
-  store.obras = (obras.data||[]).map(function(o){
+  var excluidas = store.obrasExcluidas || [];
+  store.obras = (obras.data||[]).filter(function(o){ return excluidas.indexOf(o.id)<0; }).map(function(o){
     return {id:o.id, codigo:o.codigo||"", nome:o.nome, cliente:o.cliente||"", tipo:o.tipo||"Estrutura", adms:o.adms||[], engs:o.engs||[]};
   });
   var cads = await sb.from("mo_cadastro").select("*");
@@ -638,11 +640,8 @@ async function cloudDeleteObra(id){
   if(!sbOn() || !id) return;
   await sb.from("mo_periodo").delete().eq("obra_id", id);
   await sb.from("mo_cadastro").delete().eq("obra_id", id);
-  var r = await sb.from("mo_obras").delete().eq("id", id);
-  if(r.error){
-    r = await sb.from("mo_obras").update({active:false}).eq("id", id);
-    if(r.error) throw new Error(r.error.message);
-  }
+  var r = await sb.from("mo_obras").update({active:false}).eq("id", id);
+  if(r.error) throw new Error(r.error.message);
 }
 async function cloudPushStore(){
   if(!sbOn()) return;
@@ -1557,6 +1556,8 @@ async function excluirObra(id, ev){
   var o = (store.obras||[]).find(function(x){ return x.id===id; });
   if(!o) return;
   if(!confirm("Excluir a obra "+o.nome+" e as medições dela?")) return;
+  store.obrasExcluidas = store.obrasExcluidas || [];
+  if(store.obrasExcluidas.indexOf(id)<0) store.obrasExcluidas.push(id);
   store.obras = store.obras.filter(function(x){ return x.id!==id; });
   Object.keys(store.dados||{}).forEach(function(k){
     if(k.indexOf(id+"|")===0) delete store.dados[k];
@@ -1567,9 +1568,9 @@ async function excluirObra(id, ev){
   if(sbOn()){
     try {
       await cloudDeleteObra(id);
-      alert("Obra excluída da nuvem.");
+      alert("Obra excluída.");
     } catch(e){
-      alert("Apagou aqui, mas a nuvem recusou: "+e.message);
+      alert("Erro: "+e.message);
     }
   }
   if(typeof addLog==="function") addLog("Excluiu obra "+o.nome);
@@ -1862,8 +1863,8 @@ function htmlFolha(chapa, meds, ap){
   var o = dadosObraAtual();
   var nome = (meds[0]&&meds[0].funcionario)||"";
   var funcao = (meds[0]&&meds[0].funcao)||"";
-  var serv = meds.filter(function(m){ return !m.ocultarImpressao && (!m.tipo || (m.tipo!=="integracao" && m.tipo!=="vtSabado" && m.tipo!=="extra")); });
-  var extras = meds.filter(function(m){ return !m.ocultarImpressao && (m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra"); });
+  var serv = meds.filter(function(m){ return (!m.tipo || (m.tipo!=="integracao" && m.tipo!=="vtSabado" && m.tipo!=="extra")); });
+  var extras = meds.filter(function(m){ return m.tipo==="integracao" || m.tipo==="vtSabado" || m.tipo==="extra"; });
   var tot = meds.reduce(function(a,m){ return a+Number(m.valor||0); },0);
   var linhas = serv.map(function(m,i){
     return "<tr><td>"+(i+1)+"</td><td>"+(m.pai||"")+"</td><td>"+(m.item||"")+"</td><td>"+(m.trecho||"-")+"</td><td>"+(m.qtd||"")+" "+(m.un||"")+"</td><td>"+money(m.vu||0)+"</td><td>"+money(m.valor)+"</td></tr>";
