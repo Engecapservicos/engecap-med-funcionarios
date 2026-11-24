@@ -1552,7 +1552,7 @@ function salvarDadosObra(){
   renderHeader();
   alert("Obra salva.");
 }
-function excluirObra(id, ev){
+async function excluirObra(id, ev){
   if(ev) ev.stopPropagation();
   var o = (store.obras||[]).find(function(x){ return x.id===id; });
   if(!o) return;
@@ -1565,9 +1565,12 @@ function excluirObra(id, ev){
   if(store.obraId===id) store.obraId = null;
   saveStore();
   if(sbOn()){
-    cloudDeleteObra(id).then(function(){
-      if(typeof addLog==="function") addLog("Excluiu obra na nuvem "+o.nome);
-    }).catch(function(e){ alert("Apagou aqui, mas a nuvem recusou: "+e.message); });
+    try {
+      await cloudDeleteObra(id);
+      alert("Obra excluída da nuvem.");
+    } catch(e){
+      alert("Apagou aqui, mas a nuvem recusou: "+e.message);
+    }
   }
   if(typeof addLog==="function") addLog("Excluiu obra "+o.nome);
   ir("home");
