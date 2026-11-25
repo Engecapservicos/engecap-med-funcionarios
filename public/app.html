@@ -54,11 +54,10 @@
         <label id="lblPeriodo" class="hidden text-[11px] text-slate-400 px-1">Competência</label>
         <select id="selPeriodo" onchange="trocarPeriodo(this.value)" class="hidden w-full bg-white text-slate-800 border-0 rounded-xl px-3 py-2 text-sm font-medium"></select>
         <p id="userChip" class="hidden text-xs px-3 py-2 rounded-xl bg-white/10"></p>
-        <button type="button" onclick="sincronizarNuvem()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-300 hover:bg-white/10">☁️ Sincronizar nuvem</button>
-        <button onclick="resetar()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-400 hover:bg-white/10">♻️ Recarregar da nuvem</button>
+        <button type="button" onclick="sincronizarNuvem()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-300 hover:bg-white/10">🔄 Atualizar agora</button>
         <button onclick="sair()" id="btnSair" class="hidden w-full text-left px-3 py-2 rounded-xl text-sm bg-rose-500/80 hover:bg-rose-500">🚪 Sair</button>
         <p id="syncStatus" class="text-[10px] text-slate-400 px-1"></p>
-        <p class="text-[10px] text-slate-500 text-center pt-2">versão 3.0</p>
+        <p class="text-[10px] text-slate-500 text-center pt-2">versão 3.2</p>
       </div>
     </aside>
     <div class="flex-1 max-w-6xl mx-auto py-6 px-4 w-full">
@@ -443,8 +442,14 @@ function load(){
   }
 }
 function save(){
-  if(!sbOn()){ alert("Sem conexão com a nuvem. Não dá pra salvar."); return; }
+  if(!sbOn() || !nuvemOk || semInternet()){
+    alert("⚠️ SEM CONEXÃO COM A NUVEM\n\nIsso NÃO foi salvo e foi desfeito.\nQuando a internet voltar, faça de novo.");
+    if(store.obraId) carregarDbDaObra();   // desfaz na tela o que não foi salvo
+    if(sbOn()) perdeuNuvem("Sem conexão com a nuvem. Não lance nada até voltar.");
+    return false;
+  }
   salvarDbNaObra();
+  return true;
 }
 function resetar(){
   // Antes isto zerava a obra (e apagava na nuvem). Agora só limpa a cópia DESTE aparelho
@@ -477,15 +482,16 @@ function loadStore(){
 
 async function sincronizarNuvem(){
   if(!sbOn()) return alert("Nuvem desligada neste aparelho (falta sb-config.js).");
+  setStatusNuvem("⏳ Atualizando...");
   try{
-    salvarDbNaObra();
     await cloudPushStore();
     await cloudPullStore();
-    if(store.obraId) carregarDbDaObra();
+    nuvemOk = true;
+    mostrarTrava(false);
     render();
-    alert("Sincronizado com a nuvem.");
+    setStatusNuvem("☁️ Atualizado · " + new Date().toLocaleTimeString("pt-BR"));
   }catch(e){
-    alert("Falha na nuvem: "+e.message);
+    perdeuNuvem("Não consegui atualizar da nuvem. Não lance nada até voltar.");
   }
 }
 function saveStore(){
@@ -610,12 +616,13 @@ function cadPayload(c){
   return { pais:c.pais||[], filhos:c.filhos||[], adms:c.adms||[], engs:c.engs||[] };
 }
 function cadVazio(c){ return !c || (!(c.pais||[]).length && !(c.filhos||[]).length); }
+function pendenciasValem(){ return SYNC.iniciado && !SYNC.descartar; }
 function obraPendente(o){
-  if(!SYNC.iniciado || !o || !o.id) return false;
+  if(!pendenciasValem() || !o || !o.id) return false;
   return SYNC.obra[o.id] !== hashObj(obraPayload(o));
 }
 function cadPendente(id){
-  if(!SYNC.iniciado) return false;
+  if(!pendenciasValem()) return false;
   var c = (store.cadastro||{})[id];
   if(!c) return false;
   // cadastro vazio criado só pra abrir a tela não pode apagar o da nuvem
@@ -723,7 +730,7 @@ async function puxar(full){
   if(rCad.error) throw new Error(rCad.error.message);
 
   // 2) daqui pra baixo é tudo instantâneo: junta a nuvem com o que ainda não foi enviado
-  var iniciado = SYNC.iniciado;
+  var iniciado = pendenciasValem();
   var local = registrosDoStore();
   var localH = {};
   Object.keys(local).forEach(function(id){ localH[id] = hashObj(local[id]); });
@@ -795,7 +802,7 @@ async function puxar(full){
   store.cadastro = novoCad;
   store.obras = novasObras;
   SYNC.reg = snap; SYNC.cad = snapC; SYNC.obra = snapO;
-  SYNC.ultimo = maxT; SYNC.iniciado = true;
+  SYNC.ultimo = maxT; SYNC.iniciado = true; SYNC.descartar = false;
   salvarSync();
   try{ localStorage.setItem(STORE_KEY, JSON.stringify(store)); }catch(e){ console.warn(e); }
   if(store.obraId) carregarDbDaObra();
@@ -808,7 +815,7 @@ async function puxar(full){
 
 // ---------- ENVIAR para a nuvem (só o que mudou) ----------
 async function enviar(){
-  if(!sbOn() || !SYNC.iniciado) return;
+  if(!sbOn() || !pendenciasValem()) return;
   var erros = [];
   var local = registrosDoStore();
   var up = [];
@@ -866,11 +873,8 @@ function agendarEnvio(){
       setStatusNuvem("☁️ Salvo · " + new Date().toLocaleTimeString("pt-BR"));
     }).catch(function(e){
       console.warn(e);
-      setStatusNuvem("⚠️ Não salvou na nuvem · clique em ☁️ Sincronizar");
-      if(!window._avisouErroNuvem){
-        window._avisouErroNuvem = true;
-        alert("Atenção: não consegui salvar na nuvem ("+e.message+").\nO que você fez está guardado neste aparelho e será enviado quando a conexão voltar.\nSe continuar, clique em ☁️ Sincronizar nuvem.");
-      }
+      alert("⚠️ NÃO FOI SALVO!\n\nNão consegui enviar para a nuvem ("+e.message+").\nO que você acabou de fazer foi DESFEITO.\nQuando a internet voltar, faça de novo.");
+      perdeuNuvem("O último lançamento NÃO foi salvo e foi desfeito. Quando a conexão voltar, faça de novo.");
     });
   }, 400);
 }
@@ -895,9 +899,13 @@ function pollPeriodoAtual(){
     if(mudou || window._renderPendente) renderSeguro();
     var st = document.getElementById("nuvemStatus");
     if(st && mudou) st.textContent = "Atualizado · " + new Date().toLocaleTimeString("pt-BR");
-  }).catch(function(e){ console.warn(e); });
+  }).catch(function(e){
+    console.warn(e);
+    perdeuNuvem("A conexão com a nuvem caiu. Não lance nada até voltar.");
+  });
 }
 function iniciarPoll(){
+  if(!sbOn()) return;
   if(_pollTimer) clearInterval(_pollTimer);
   _pollTimer = setInterval(pollPeriodoAtual, 10000);
 }
@@ -913,6 +921,62 @@ async function cloudDeleteObra(id){
   Object.keys(SYNC.reg).forEach(function(k){ if(k.indexOf("|"+id+"|")>0) delete SYNC.reg[k]; });
   delete SYNC.cad[id]; delete SYNC.obra[id];
   salvarSync();
+}
+
+// =====================================================================
+// TRAVA: sem nuvem, não lança. Nada fica guardado só no aparelho.
+// =====================================================================
+var nuvemOk = true;
+var _retryTimer = null, _reconectando = false;
+function semInternet(){ return typeof navigator!=="undefined" && navigator.onLine===false; }
+function mostrarTrava(on, msg){
+  var el = document.getElementById("travaNuvem");
+  if(!el){
+    el = document.createElement("div");
+    el.id = "travaNuvem";
+    el.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;z-index:60;background:rgba(15,23,42,.85);display:none;align-items:center;justify-content:center;padding:16px";
+    el.innerHTML = '<div style="background:#fff;border-radius:16px;max-width:420px;width:100%;padding:24px;text-align:center;font-family:Inter,sans-serif">'+
+      '<p style="font-size:40px;margin:0">📵</p>'+
+      '<p style="font-weight:700;font-size:18px;color:#b91c1c;margin:8px 0 0">Sem conexão com a nuvem</p>'+
+      '<p id="travaNuvemMsg" style="font-size:14px;color:#334155;margin:8px 0 0"></p>'+
+      '<p style="font-size:12px;color:#64748b;margin:12px 0 0">Tentando reconectar sozinho a cada 5 segundos...</p>'+
+      '<button type="button" id="travaNuvemBtn" style="margin-top:14px;background:#1e293b;color:#fff;border:0;border-radius:8px;padding:10px 18px;font-size:14px;cursor:pointer">Tentar agora</button></div>';
+    document.body.appendChild(el);
+    var bt = el.querySelector("#travaNuvemBtn");
+    if(bt) bt.onclick = function(){ tentarReconectar(); };
+  }
+  el.style.display = on ? "flex" : "none";
+  var m = document.getElementById("travaNuvemMsg");
+  if(m && msg) m.textContent = msg;
+}
+function perdeuNuvem(msg){
+  nuvemOk = false;
+  SYNC.descartar = true;   // o que não subiu será jogado fora quando voltar
+  salvarSync();
+  setStatusNuvem("📵 Sem conexão com a nuvem");
+  if(sessao) mostrarTrava(true, msg);
+  if(!_retryTimer) _retryTimer = setInterval(tentarReconectar, 5000);
+}
+function tentarReconectar(){
+  if(_reconectando || !sbOn()) return Promise.resolve(false);
+  _reconectando = true;
+  return naFila(function(){ return puxar(true); }).then(function(){
+    _reconectando = false;
+    nuvemOk = true;
+    if(_retryTimer){ clearInterval(_retryTimer); _retryTimer = null; }
+    mostrarTrava(false);
+    setStatusNuvem("☁️ Conectado · " + new Date().toLocaleTimeString("pt-BR"));
+    if(typeof render === "function") render();
+    return true;
+  }).catch(function(e){
+    _reconectando = false;
+    console.warn(e);
+    return false;
+  });
+}
+if(typeof window!=="undefined" && window.addEventListener){
+  window.addEventListener("offline", function(){ if(sessao) perdeuNuvem("A internet deste aparelho caiu. Não lance nada até voltar."); });
+  window.addEventListener("online", function(){ tentarReconectar(); });
 }
 
 
@@ -1270,7 +1334,7 @@ function liberar(id){
     var pai = db.pais.find(function(p){ return p.id===f.paiId; });
     window._formExp = window._formExp || {};
     if(pai) window._formExp[pai.id] = true;
-    save();
+    if(!save()){ render(); return; }
     render();
     alert("Trecho liberado: "+trecho+" · "+q+" "+(f.un||""));
   }catch(e){
@@ -1327,7 +1391,7 @@ function devolverRestante(filhoId, libId){
   if(resto<=0.0001) return alert("Não tem resto neste trecho.");
   if(!confirm("Devolver "+qtdFmt(resto)+" "+(f.un||"")+" do trecho "+l.trecho+"?\nPago fica "+qtdFmt(pago)+". O resto volta pro saldo pra liberar de novo.")) return;
   gravarLibQtd(filhoId, libId, Math.round(pago*1000)/1000);
-  save();
+  if(!save()){ render(); return; }
   render();
   alert("Devolveu "+qtdFmt(resto)+" "+(f.un||"")+". Já pode liberar no mês que vem.");
 }
@@ -1349,7 +1413,8 @@ function devolverRestosFilho(filhoId){
     var resto = Number(l.qtd||0) - pago;
     if(resto>0.0001) gravarLibQtd(filhoId, l.id, Math.round(pago*1000)/1000);
   });
-  save(); render();
+  if(!save()){ render(); return; }
+  render();
   alert("Saldo devolvido: "+qtdFmt(vol)+" "+(f.un||""));
 }
 function excluirLib(filhoId, libId){
@@ -2176,7 +2241,7 @@ function aprovarMedicao(chapa, silencioso){
   db.aprovacoes = db.aprovacoes || {};
   db.aprovacoes[String(chapa)] = carimboAprovacao();
   if(!silencioso){
-    save();
+    if(!save()){ render(); return; }
     render();
     alert("Medição da chapa "+chapa+" aprovada.");
   }
@@ -2224,9 +2289,9 @@ function aprovarLista(chapas, rotulo){
   if(!chapas.length) return alert("Não tem medição pendente"+(rotulo?(" em "+rotulo):""));
   if(!confirm("Aprovar "+chapas.length+" medição(ões)"+(rotulo?(" de "+rotulo):"")+"?")) return;
   chapas.forEach(function(c){ aprovarMedicao(c, true); });
-  save();
+  if(!save()){ render(); return; }
   render();
-  alert(chapas.length+" medição(ões) aprovadas. Sincroniza a nuvem pra o apontador ver.");
+  alert(chapas.length+" medição(ões) aprovadas.");
 }
 function aprovarTodasPendentes(){
   var filtro = window._resumoFiltro || "";
@@ -2922,7 +2987,7 @@ function abrirObra(id){
   if(sbOn()){
     cloudPushStore().then(function(){
       return cloudPullStore();
-    }).then(function(){ segue(); iniciarPoll(); }).catch(function(){ segue(); iniciarPoll(); });
+    }).then(function(){ segue(); iniciarPoll(); }).catch(function(){ segue(); iniciarPoll(); perdeuNuvem("Não consegui abrir a obra na nuvem. Não lance nada até voltar."); });
   } else segue();
 }
 
@@ -2937,7 +3002,7 @@ function trocarPeriodo(k){
     cloudPullStore().then(function(){
       store.periodo = k;
       segue();
-    }).catch(segue);
+    }).catch(function(){ segue(); perdeuNuvem("Não consegui buscar o período na nuvem. Não lance nada até voltar."); });
   } else {
     saveStore();
     segue();
@@ -3154,6 +3219,7 @@ if(sessao){
     }).catch(function(){
       ir("home");
       iniciarPoll();
+      perdeuNuvem("Não consegui conectar na nuvem. Não lance nada até voltar.");
     });
   } else {
     ir("home");
