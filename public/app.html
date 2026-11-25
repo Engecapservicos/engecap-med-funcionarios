@@ -55,9 +55,10 @@
         <select id="selPeriodo" onchange="trocarPeriodo(this.value)" class="hidden w-full bg-white text-slate-800 border-0 rounded-xl px-3 py-2 text-sm font-medium"></select>
         <p id="userChip" class="hidden text-xs px-3 py-2 rounded-xl bg-white/10"></p>
         <button type="button" onclick="sincronizarNuvem()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-300 hover:bg-white/10">☁️ Sincronizar nuvem</button>
-        <button onclick="resetar()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-400 hover:bg-white/10">♻️ Reset dados</button>
+        <button onclick="resetar()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-400 hover:bg-white/10">♻️ Recarregar da nuvem</button>
         <button onclick="sair()" id="btnSair" class="hidden w-full text-left px-3 py-2 rounded-xl text-sm bg-rose-500/80 hover:bg-rose-500">🚪 Sair</button>
-        <p class="text-[10px] text-slate-500 text-center pt-2">versão 2.6</p>
+        <p id="syncStatus" class="text-[10px] text-slate-400 px-1"></p>
+        <p class="text-[10px] text-slate-500 text-center pt-2">versão 3.0</p>
       </div>
     </aside>
     <div class="flex-1 max-w-6xl mx-auto py-6 px-4 w-full">
@@ -443,16 +444,20 @@ function load(){
 }
 function save(){
   if(!sbOn()){ alert("Sem conexão com a nuvem. Não dá pra salvar."); return; }
-  localStorage.setItem(KEY, JSON.stringify(db));
   salvarDbNaObra();
 }
 function resetar(){
-  if(!confirm("Zerar os dados de teste?")) return;
-  localStorage.removeItem(KEY);
-  db = JSON.parse(JSON.stringify(seed));
-  paiSel = db.pais[0].id;
-  save();
-  render();
+  // Antes isto zerava a obra (e apagava na nuvem). Agora só limpa a cópia DESTE aparelho
+  // e baixa tudo de novo da nuvem. Não apaga nada de ninguém.
+  if(!sbOn()) return alert("Sem conexão com a nuvem.");
+  if(!confirm("Limpar a cópia guardada NESTE aparelho e baixar tudo de novo da nuvem?\n\nNão apaga nada na nuvem. Use se a tela estiver mostrando algo estranho.\n(Se algo deste aparelho ainda não tiver ido pra nuvem, será perdido.)")) return;
+  SYNC = novoSync(); salvarSync();
+  store.dados = {}; store.cadastro = {};
+  cloudPullStore().then(function(){
+    if(store.obraId) carregarDbDaObra();
+    render();
+    alert("Pronto. Dados recarregados da nuvem.");
+  }).catch(function(e){ alert("Falha na nuvem: "+e.message); });
 }
 
 
@@ -484,8 +489,8 @@ async function sincronizarNuvem(){
   }
 }
 function saveStore(){
-  localStorage.setItem(STORE_KEY, JSON.stringify(store));
-  if(sbOn()) cloudPushStore().catch(function(e){ console.warn(e); });
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(store)); }catch(e){ console.warn(e); }
+  agendarEnvio();
 }
 let store = loadStore();
 
@@ -545,142 +550,374 @@ async function cloudSaveFuncionarios(rows){
   var r = await sb.from("funcionarios").upsert(payload, { onConflict: "chapa" });
   if(r.error) throw new Error(r.error.message);
 }
-function dedupMedicoes(arr){
-  var mapa = {};
-  (arr||[]).forEach(function(m){
-    if(!m) return;
-    var k = String(m.chapa||"")+"|"+String(m.tipo||"")+"|"+String(m.item||"")+"|"+String(m.libId||"")+"|"+String(m.obraId||"");
-    mapa[k] = m;
-  });
-  return Object.keys(mapa).map(function(k){ return mapa[k]; });
+// =====================================================================
+// SINCRONIZAÇÃO COM A NUVEM · versão 3
+// Cada medição, liberação e aprovação é uma linha própria (tabela mo_registros).
+// O aparelho envia SÓ o que ele mesmo mudou. Assim ninguém apaga o trabalho do outro.
+// =====================================================================
+var SYNC_KEY = "engecap_mo_sync_v3";
+function novoSync(){ return { iniciado:false, ultimo:null, reg:{}, cad:{}, obra:{} }; }
+function loadSync(){
+  try{
+    var raw = localStorage.getItem(SYNC_KEY);
+    if(raw){ var s = JSON.parse(raw); if(s && s.reg && s.cad && s.obra) return s; }
+  }catch(e){}
+  return novoSync();
 }
-function mergeMedicoes(local, remoto){
-  var mapa = {};
-  function add(m){
-    if(!m) return;
-    var k = String(m.id||"") || (String(m.chapa||"")+"|"+String(m.tipo||"")+"|"+String(m.item||"")+"|"+String(m.libId||""));
-    mapa[k] = m;
+function salvarSync(){ try{ localStorage.setItem(SYNC_KEY, JSON.stringify(SYNC)); }catch(e){ console.warn(e); } }
+var SYNC = loadSync();
+
+function stableStr(v){
+  if(v===undefined || typeof v==="function") return "null";
+  if(v===null || typeof v!=="object") return JSON.stringify(v);
+  if(Array.isArray(v)) return "["+v.map(stableStr).join(",")+"]";
+  var ks = Object.keys(v).filter(function(k){ return v[k]!==undefined && typeof v[k]!=="function"; }).sort();
+  return "{"+ks.map(function(k){ return JSON.stringify(k)+":"+stableStr(v[k]); }).join(",")+"}";
+}
+function hashTxt(str){
+  var h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for(var i=0;i<str.length;i++){
+    var ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
   }
-  (remoto||[]).forEach(add);
-  (local||[]).forEach(add);
-  return Object.keys(mapa).map(function(k){ return mapa[k]; });
+  h1 = Math.imul(h1 ^ (h1>>>16), 2246822507) ^ Math.imul(h2 ^ (h2>>>13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2>>>16), 2246822507) ^ Math.imul(h1 ^ (h1>>>13), 3266489909);
+  return (h2>>>0).toString(36)+"-"+(h1>>>0).toString(36);
 }
-async function cloudPullStore(){
-  if(!sbOn()) return;
-  var localDados = JSON.parse(JSON.stringify(store.dados||{}));
-  var obras = await sb.from("mo_obras").select("*").eq("active", true);
-  if(obras.error) throw new Error(obras.error.message);
-  var excluidas = store.obrasExcluidas || [];
-  store.obras = (obras.data||[]).filter(function(o){ return excluidas.indexOf(o.id)<0; }).map(function(o){
-    return {id:o.id, codigo:o.codigo||"", nome:o.nome, cliente:o.cliente||"", tipo:o.tipo||"Estrutura", adms:o.adms||[], engs:o.engs||[]};
-  });
-  var cads = await sb.from("mo_cadastro").select("*");
-  store.cadastro = {};
-  (cads.data||[]).forEach(function(c){
-    store.cadastro[c.obra_id] = { pais:c.pais||[], filhos:c.filhos||[], adms:c.adms||[], engs:c.engs||[] };
-  });
-  var pers = await sb.from("mo_periodo").select("*");
-  store.dados = {};
-  (pers.data||[]).forEach(function(c){
-    var libs = c.libs||{};
-    var key = c.obra_id+"|"+c.periodo;
-    var local = localDados[key] || {};
-    var meds = mergeMedicoes(local.medicoes, c.medicoes||[]);
-    store.dados[key] = {
-      medicoes: meds,
-      libs: libs,
-      aprovacoes: c.aprovacoes || libs.__aprovacoes || local.aprovacoes || {}
-    };
-  });
-  Object.keys(localDados).forEach(function(key){
-    if(!store.dados[key]){
-      store.dados[key] = localDados[key];
-    }
-  });
-  (store.obras||[]).forEach(function(o){
-    if((!o.adms || !o.adms.length) && store.cadastro[o.id] && store.cadastro[o.id].adms)
-      o.adms = store.cadastro[o.id].adms;
-    if((!o.engs || !o.engs.length) && store.cadastro[o.id] && store.cadastro[o.id].engs)
-      o.engs = store.cadastro[o.id].engs;
-  });
-  localStorage.setItem(STORE_KEY, JSON.stringify(store));
+function hashObj(o){ return hashTxt(stableStr(o)); }
+
+var _ultimoIdGerado = 0;
+function novoId(){
+  var id = Date.now()*1000 + Math.floor(Math.random()*1000);
+  if(id <= _ultimoIdGerado) id = _ultimoIdGerado + 1;
+  _ultimoIdGerado = id;
+  return id;
 }
 
-var _pollTimer = null;
-var _lastMedCount = -1;
-async function pollPeriodoAtual(){
-  if(!sbOn() || !store.obraId || !store.periodo) return;
-  try{
-    var r = await sb.from("mo_periodo").select("medicoes,libs,aprovacoes").eq("obra_id", store.obraId).eq("periodo", store.periodo).maybeSingle();
-    if(r.error || !r.data) return;
-    var key = store.obraId+"|"+store.periodo;
-    var remoto = dedupMedicoes(r.data.medicoes || []);
-    var local = ((store.dados||{})[key]||{}).medicoes || [];
-    var mudou = JSON.stringify(remoto) !== JSON.stringify(local);
-    if(mudou){
-      store.dados = store.dados || {};
-      store.dados[key] = store.dados[key] || { medicoes:[], libs:{} };
-      store.dados[key].medicoes = remoto;
-      if(r.data.libs) store.dados[key].libs = r.data.libs;
-      if(r.data.aprovacoes) store.dados[key].aprovacoes = r.data.aprovacoes;
-      localStorage.setItem(STORE_KEY, JSON.stringify(store));
-      carregarDbDaObra();
-      if(typeof render === "function") render();
-      var st = document.getElementById("nuvemStatus");
-      if(st) st.textContent = "Atualizado · " + new Date().toLocaleTimeString("pt-BR");
+function setStatusNuvem(txt){
+  var el = document.getElementById("syncStatus");
+  if(el) el.textContent = txt;
+}
+
+// ---------- obras e cadastro ----------
+function obraPayload(o){
+  o = o || {};
+  return { codigo:o.codigo||"", nome:o.nome||"", cliente:o.cliente||"", tipo:o.tipo||"Estrutura", adms:o.adms||[], engs:o.engs||[] };
+}
+function cadPayload(c){
+  c = c || {};
+  return { pais:c.pais||[], filhos:c.filhos||[], adms:c.adms||[], engs:c.engs||[] };
+}
+function cadVazio(c){ return !c || (!(c.pais||[]).length && !(c.filhos||[]).length); }
+function obraPendente(o){
+  if(!SYNC.iniciado || !o || !o.id) return false;
+  return SYNC.obra[o.id] !== hashObj(obraPayload(o));
+}
+function cadPendente(id){
+  if(!SYNC.iniciado) return false;
+  var c = (store.cadastro||{})[id];
+  if(!c) return false;
+  // cadastro vazio criado só pra abrir a tela não pode apagar o da nuvem
+  if(SYNC.cad[id]===undefined && cadVazio(c)) return false;
+  return SYNC.cad[id] !== hashObj(cadPayload(c));
+}
+
+// ---------- registros (medições, liberações, aprovações) ----------
+function registrosDoStore(){
+  var out = {};
+  Object.keys(store.dados||{}).forEach(function(key){
+    var p = key.split("|"), obra = p[0], per = p[1];
+    if(!obra || !per || obra==="null" || obra==="undefined") return;
+    var d = store.dados[key] || {};
+    (d.medicoes||[]).forEach(function(m){
+      if(!m || m.id==null) return;
+      if(m.obraId && m.obraId!==obra) return;
+      out["med|"+obra+"|"+m.id] = { tipo:"med", obra_id:obra, periodo:per, dados:m };
+    });
+    var libs = d.libs || {};
+    Object.keys(libs).forEach(function(fid){
+      if(fid.indexOf("__")===0 || !Array.isArray(libs[fid])) return;
+      libs[fid].forEach(function(l){
+        if(!l || l.id==null) return;
+        out["lib|"+obra+"|"+l.id] = { tipo:"lib", obra_id:obra, periodo:per, dados:Object.assign({}, l, {filhoId:String(fid)}) };
+      });
+    });
+    var ap = d.aprovacoes || {};
+    Object.keys(ap).forEach(function(ch){
+      if(!ap[ch] || typeof ap[ch]!=="object") return;
+      out["aprov|"+obra+"|"+per+"|"+ch] = { tipo:"aprov", obra_id:obra, periodo:per, dados:Object.assign({}, ap[ch], {chapa:String(ch)}) };
+    });
+  });
+  return out;
+}
+function storeDeRegistros(map){
+  var dados = {};
+  function pack(o, p){ var k = o+"|"+p; return dados[k] || (dados[k] = { medicoes:[], libs:{}, aprovacoes:{} }); }
+  Object.keys(map).forEach(function(id){
+    var r = map[id];
+    if(!r) return;
+    var d = pack(r.obra_id, r.periodo);
+    var x = JSON.parse(JSON.stringify(r.dados||{}));
+    if(r.tipo==="med") d.medicoes.push(x);
+    else if(r.tipo==="lib"){
+      var fid = String(x.filhoId||"");
+      if(!d.libs[fid]) d.libs[fid] = [];
+      d.libs[fid].push(x);
     }
-  }catch(e){ console.warn(e); }
+    else if(r.tipo==="aprov"){
+      var ch = String(x.chapa||"");
+      if(ch) d.aprovacoes[ch] = x;
+    }
+  });
+  function porId(a,b){ return (Number(a.id)||0) - (Number(b.id)||0); }
+  Object.keys(dados).forEach(function(k){
+    dados[k].medicoes.sort(porId);
+    Object.keys(dados[k].libs).forEach(function(f){ dados[k].libs[f].sort(porId); });
+  });
+  return dados;
+}
+function assinatura(mapH){
+  return hashTxt(Object.keys(mapH).sort().map(function(id){ return id+"="+mapH[id]; }).join(";"));
+}
+async function buscarRegistros(desde){
+  var all = [], from = 0, page = 1000;
+  while(true){
+    var q = sb.from("mo_registros").select("id,tipo,obra_id,periodo,dados,excluido,atualizado_em").order("id", {ascending:true}).range(from, from+page-1);
+    q = desde ? q.gt("atualizado_em", desde) : q.eq("excluido", false);
+    var r = await q;
+    if(r.error) throw new Error(r.error.message);
+    var chunk = r.data || [];
+    all = all.concat(chunk);
+    if(chunk.length < page) break;
+    from += page;
+    if(from > 200000) break;
+  }
+  return all;
+}
+
+// Fila: envio e recebimento nunca rodam ao mesmo tempo
+var _filaNuvem = Promise.resolve();
+function naFila(fn){
+  var p = _filaNuvem.then(function(){ return fn(); });
+  _filaNuvem = p.catch(function(){});
+  return p;
+}
+
+// ---------- RECEBER da nuvem ----------
+async function puxar(full){
+  if(!sbOn()) return false;
+  if(!SYNC.iniciado) full = true;
+  var desde = null;
+  if(!full && SYNC.ultimo){
+    var t = new Date(SYNC.ultimo).getTime();
+    if(!isNaN(t)) desde = new Date(t - 30000).toISOString();
+  }
+  if(!desde) full = true;
+
+  // 1) busca tudo primeiro (sem mexer em nada local enquanto espera a internet)
+  var rows = await buscarRegistros(full ? null : desde);
+  var rObras = await sb.from("mo_obras").select("*").eq("active", true);
+  if(rObras.error) throw new Error(rObras.error.message);
+  var rCad = await sb.from("mo_cadastro").select("*");
+  if(rCad.error) throw new Error(rCad.error.message);
+
+  // 2) daqui pra baixo é tudo instantâneo: junta a nuvem com o que ainda não foi enviado
+  var iniciado = SYNC.iniciado;
+  var local = registrosDoStore();
+  var localH = {};
+  Object.keys(local).forEach(function(id){ localH[id] = hashObj(local[id]); });
+  var pendUp = {}, pendDel = {};
+  if(iniciado){
+    Object.keys(localH).forEach(function(id){ if(SYNC.reg[id]!==localH[id]) pendUp[id] = true; });
+    Object.keys(SYNC.reg).forEach(function(id){ if(!localH[id]) pendDel[id] = true; });
+  }
+  var merged = {}, mergedH = {}, snap;
+  if(full){
+    snap = {};
+  } else {
+    snap = Object.assign({}, SYNC.reg);
+    Object.keys(local).forEach(function(id){ merged[id] = local[id]; mergedH[id] = localH[id]; });
+  }
+  var maxT = full ? null : SYNC.ultimo;
+  rows.forEach(function(r){
+    if(r.atualizado_em && (!maxT || String(r.atualizado_em) > String(maxT))) maxT = r.atualizado_em;
+    if(r.excluido){
+      delete snap[r.id];
+      if(!pendUp[r.id]){ delete merged[r.id]; delete mergedH[r.id]; }
+      return;
+    }
+    var rec = { tipo:r.tipo, obra_id:r.obra_id, periodo:r.periodo, dados:r.dados||{} };
+    var h = hashObj(rec);
+    snap[r.id] = h;
+    if(pendUp[r.id] || pendDel[r.id]) return;
+    merged[r.id] = rec; mergedH[r.id] = h;
+  });
+  if(full){
+    Object.keys(pendUp).forEach(function(id){ merged[id] = local[id]; mergedH[id] = localH[id]; });
+  }
+  var mudouReg = assinatura(localH) !== assinatura(mergedH);
+
+  var antesOC = stableStr({ o:store.obras||[], c:store.cadastro||{} });
+
+  // cadastro (serviços pai/filho)
+  var pendCad = {};
+  Object.keys(store.cadastro||{}).forEach(function(id){ if(cadPendente(id)) pendCad[id] = store.cadastro[id]; });
+  var novoCad = {}, snapC = {};
+  (rCad.data||[]).forEach(function(c){
+    var cc = { pais:c.pais||[], filhos:c.filhos||[], adms:c.adms||[], engs:c.engs||[] };
+    var antigo = (store.cadastro||{})[c.obra_id];
+    if(antigo && antigo.prevParams) cc.prevParams = antigo.prevParams;
+    snapC[c.obra_id] = hashObj(cadPayload(cc));
+    novoCad[c.obra_id] = pendCad[c.obra_id] || cc;
+  });
+  Object.keys(pendCad).forEach(function(id){ if(!novoCad[id]) novoCad[id] = pendCad[id]; });
+
+  // obras
+  var pendObra = {};
+  (store.obras||[]).forEach(function(o){ if(obraPendente(o)) pendObra[o.id] = o; });
+  var excluidas = store.obrasExcluidas || [];
+  var novasObras = [], vistas = {}, snapO = {};
+  (rObras.data||[]).forEach(function(o){
+    if(excluidas.indexOf(o.id)>=0) return;
+    var ob = { id:o.id, codigo:o.codigo||"", nome:o.nome, cliente:o.cliente||"", tipo:o.tipo||"Estrutura", adms:o.adms||[], engs:o.engs||[] };
+    var cc = novoCad[o.id];
+    if(!ob.adms.length && cc && cc.adms && cc.adms.length) ob.adms = cc.adms;
+    if(!ob.engs.length && cc && cc.engs && cc.engs.length) ob.engs = cc.engs;
+    snapO[o.id] = hashObj(obraPayload(ob));
+    vistas[o.id] = true;
+    novasObras.push(pendObra[o.id] || ob);
+  });
+  Object.keys(pendObra).forEach(function(id){ if(!vistas[id]) novasObras.push(pendObra[id]); });
+
+  // grava o resultado
+  store.dados = storeDeRegistros(merged);
+  store.cadastro = novoCad;
+  store.obras = novasObras;
+  SYNC.reg = snap; SYNC.cad = snapC; SYNC.obra = snapO;
+  SYNC.ultimo = maxT; SYNC.iniciado = true;
+  salvarSync();
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(store)); }catch(e){ console.warn(e); }
+  if(store.obraId) carregarDbDaObra();
+
+  var depoisOC = stableStr({ o:store.obras, c:store.cadastro });
+  var temPend = Object.keys(pendUp).length || Object.keys(pendDel).length || Object.keys(pendCad).length || Object.keys(pendObra).length;
+  if(temPend) setTimeout(agendarEnvio, 0);
+  return mudouReg || antesOC!==depoisOC;
+}
+
+// ---------- ENVIAR para a nuvem (só o que mudou) ----------
+async function enviar(){
+  if(!sbOn() || !SYNC.iniciado) return;
+  var erros = [];
+  var local = registrosDoStore();
+  var up = [];
+  Object.keys(local).forEach(function(id){
+    var h = hashObj(local[id]);
+    if(SYNC.reg[id]!==h) up.push({ id:id, rec:local[id], h:h });
+  });
+  var del = Object.keys(SYNC.reg).filter(function(id){ return !local[id]; });
+  var obrasPend = (store.obras||[]).filter(obraPendente);
+  var cadsPend = Object.keys(store.cadastro||{}).filter(cadPendente);
+  if(!up.length && !del.length && !obrasPend.length && !cadsPend.length) return;
+  setStatusNuvem("⏳ Salvando na nuvem...");
+
+  var i, chunk, r;
+  for(i=0; i<up.length; i+=200){
+    chunk = up.slice(i, i+200);
+    r = await sb.from("mo_registros").upsert(chunk.map(function(x){
+      return { id:x.id, tipo:x.rec.tipo, obra_id:x.rec.obra_id, periodo:x.rec.periodo, dados:JSON.parse(JSON.stringify(x.rec.dados)), excluido:false };
+    }));
+    if(r.error){ erros.push(r.error.message); break; }
+    chunk.forEach(function(x){ SYNC.reg[x.id] = x.h; });
+    salvarSync();
+  }
+  for(i=0; i<del.length && !erros.length; i+=200){
+    chunk = del.slice(i, i+200);
+    r = await sb.from("mo_registros").update({ excluido:true }).in("id", chunk);
+    if(r.error){ erros.push(r.error.message); break; }
+    chunk.forEach(function(id){ delete SYNC.reg[id]; });
+    salvarSync();
+  }
+  for(i=0; i<obrasPend.length; i++){
+    var o = obrasPend[i], ho = hashObj(obraPayload(o));
+    r = await sb.from("mo_obras").upsert(Object.assign({ id:o.id, active:true }, obraPayload(o)));
+    if(r.error){ erros.push(r.error.message); continue; }
+    SYNC.obra[o.id] = ho;
+  }
+  for(i=0; i<cadsPend.length; i++){
+    var cid = cadsPend[i], cp = cadPayload(store.cadastro[cid]), hc = hashObj(cp);
+    r = await sb.from("mo_cadastro").upsert(Object.assign({ obra_id:cid }, JSON.parse(JSON.stringify(cp))));
+    if(r.error){ erros.push(r.error.message); continue; }
+    SYNC.cad[cid] = hc;
+  }
+  salvarSync();
+  if(erros.length) throw new Error(erros[0]);
+}
+
+var _envioTimer = null;
+function agendarEnvio(){
+  if(!sbOn()) return;
+  if(_envioTimer) return; // já tem envio marcado: ele vai levar tudo o que mudou
+  _envioTimer = setTimeout(function(){
+    _envioTimer = null;
+    naFila(enviar).then(function(){
+      window._avisouErroNuvem = false;
+      setStatusNuvem("☁️ Salvo · " + new Date().toLocaleTimeString("pt-BR"));
+    }).catch(function(e){
+      console.warn(e);
+      setStatusNuvem("⚠️ Não salvou na nuvem · clique em ☁️ Sincronizar");
+      if(!window._avisouErroNuvem){
+        window._avisouErroNuvem = true;
+        alert("Atenção: não consegui salvar na nuvem ("+e.message+").\nO que você fez está guardado neste aparelho e será enviado quando a conexão voltar.\nSe continuar, clique em ☁️ Sincronizar nuvem.");
+      }
+    });
+  }, 400);
+}
+
+// nomes antigos, usados no resto do programa
+function cloudPullStore(){ return naFila(function(){ return puxar(true); }); }
+function cloudPushStore(){ return naFila(enviar); }
+
+function renderSeguro(){
+  var a = document.activeElement;
+  var digitando = a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.type!=="checkbox" && a.type!=="file" && a.id!=="selPeriodo" && a.id!=="periodoSel";
+  if(digitando){ window._renderPendente = true; return; }
+  window._renderPendente = false;
+  if(typeof render === "function") render();
+}
+
+var _pollTimer = null, _pollRodando = false;
+function pollPeriodoAtual(){
+  if(!sbOn() || !sessao || _pollRodando) return;
+  _pollRodando = true;
+  naFila(function(){ return puxar(false); }).finally(function(){ _pollRodando = false; }).then(function(mudou){
+    if(mudou || window._renderPendente) renderSeguro();
+    var st = document.getElementById("nuvemStatus");
+    if(st && mudou) st.textContent = "Atualizado · " + new Date().toLocaleTimeString("pt-BR");
+  }).catch(function(e){ console.warn(e); });
 }
 function iniciarPoll(){
   if(_pollTimer) clearInterval(_pollTimer);
   _pollTimer = setInterval(pollPeriodoAtual, 10000);
-  setTimeout(pollPeriodoAtual, 3000);
 }
+
 async function cloudDeleteObra(id){
   if(!sbOn() || !id) return;
+  var r0 = await sb.from("mo_registros").update({ excluido:true }).eq("obra_id", id);
+  if(r0.error) throw new Error(r0.error.message);
   await sb.from("mo_periodo").delete().eq("obra_id", id);
   await sb.from("mo_cadastro").delete().eq("obra_id", id);
-  var r = await sb.from("mo_obras").update({active:false}).eq("id", id);
+  var r = await sb.from("mo_obras").update({ active:false }).eq("id", id);
   if(r.error) throw new Error(r.error.message);
-}
-async function cloudPushStore(){
-  if(!sbOn()) return;
-  var obras = store.obras||[];
-  for(var i=0;i<obras.length;i++){
-    var o = obras[i];
-    var r = await sb.from("mo_obras").upsert({
-      id:o.id, codigo:o.codigo||"", nome:o.nome, cliente:o.cliente||"", tipo:o.tipo||"Estrutura", active:true, adms:o.adms||[], engs:o.engs||[]
-    });
-    if(r.error) console.warn(r.error);
-  }
-  Object.keys(store.cadastro||{}).forEach(function(){});
-  var ids = Object.keys(store.cadastro||{});
-  for(var j=0;j<ids.length;j++){
-    var id = ids[j];
-    var cad = store.cadastro[id];
-    var r2 = await sb.from("mo_cadastro").upsert({
-      obra_id:id, pais:cad.pais||[], filhos:cad.filhos||[], adms:cad.adms||[], engs:cad.engs||[]
-    });
-    if(r2.error) console.warn(r2.error);
-  }
-  var ks = Object.keys(store.dados||{});
-  for(var k=0;k<ks.length;k++){
-    var key = ks[k];
-    var parts = key.split("|");
-    var d = store.dados[key];
-    var libsPush = d.libs || {};
-    libsPush.__aprovacoes = d.aprovacoes || libsPush.__aprovacoes || {};
-    var r3 = await sb.from("mo_periodo").upsert({
-      obra_id:parts[0], periodo:parts[1], medicoes:d.medicoes||[], libs:libsPush,
-      updated_at: new Date().toISOString()
-    });
-    if(r3.error) console.warn(r3.error);
-  }
+  Object.keys(SYNC.reg).forEach(function(k){ if(k.indexOf("|"+id+"|")>0) delete SYNC.reg[k]; });
+  delete SYNC.cad[id]; delete SYNC.obra[id];
+  salvarSync();
 }
 
 
-let db = load();
-let paiSel = db.pais[0] ? db.pais[0].id : null;
+let db = vazioDb();
+let paiSel = null;
 let editandoPaiId = null;
 let editandoFilhoId = null;
 let view = "cadastro";
@@ -972,6 +1209,7 @@ function editarFilho(id){
   document.getElementById("filhoUn").value = f.un;
   document.getElementById("filhoQtd").value = f.qtd;
   document.getElementById("filhoExtra").checked = !!f.extra;
+  document.getElementById("filhoOcultar").checked = !!f.ocultarImpressao;
   preencherFuncoes(f.funcoes);
   document.getElementById("btnFilho").textContent = "Salvar filho";
   document.getElementById("btnCancelarFilho").classList.remove("hidden");
@@ -981,6 +1219,7 @@ function cancelarEdicaoFilho(){
   document.getElementById("filhoNome").value = "";
   document.getElementById("filhoQtd").value = "";
   document.getElementById("filhoExtra").checked = false;
+  document.getElementById("filhoOcultar").checked = false;
   preencherFuncoes({});
   document.getElementById("btnFilho").textContent = "Adicionar filho neste pai";
   document.getElementById("btnCancelarFilho").classList.add("hidden");
@@ -1022,7 +1261,7 @@ function liberar(id){
     if(!trecho) return alert("Identifica o trecho. Ex: Trecho B");
     if(q>saldo+0.0001) return alert("Estoura o saldo ("+saldo+" "+(f.un||"")+")");
     f.liberacoes.push({
-      id: Date.now(),
+      id: novoId(),
       qtd: q,
       trecho: trecho,
       periodo: store.periodo,
@@ -1173,7 +1412,7 @@ function todasMedicoesObra(){
   var mapa = {};
   function add(m){
     if(!m) return;
-    var k = String(m.id||"")+"|"+String(m.chapa||"")+"|"+String(m.libId||"")+"|"+String(m.qtd||"")+"|"+String(m.valor||"");
+    var k = m.id!=null ? String(m.id) : JSON.stringify(m);
     mapa[k] = m;
   }
   Object.keys(store.dados||{}).forEach(function(chave){
@@ -1250,7 +1489,7 @@ function lancarVales(){
   var n = 0;
   if(qi && !temExtra("integracao")){
     db.medicoes.push({
-      id: Date.now(),
+      id: novoId(),
       obraId: store.obraId,
       apontador: userAtual(),
       tipo: "integracao",
@@ -1269,7 +1508,7 @@ function lancarVales(){
   }
   if(qv && !temExtra("vtSabado")){
     db.medicoes.push({
-      id: Date.now()+1,
+      id: novoId(),
       obraId: store.obraId,
       apontador: userAtual(),
       tipo: "vtSabado",
@@ -1303,7 +1542,7 @@ function lancar(libId){
   var vu = vuFuncao(t.filho.funcoes, funcionarioAtual.funcao);
   if(!vu) return alert("Essa função não recebe neste item");
   db.medicoes.push({
-    id: Date.now(),
+    id: novoId(),
     obraId: store.obraId,
     apontador: userAtual(),
     libId: libId,
@@ -1329,7 +1568,7 @@ function lancar(libId){
     var ja = acharExtra("integracao");
     if(ja){ ja.qtd = qi; ja.vu = PRECOS_EXTRA.integracao; ja.valor = qi*PRECOS_EXTRA.integracao; }
     else db.medicoes.push({
-      id: Date.now()+1,
+      id: novoId(),
       obraId: store.obraId,
       tipo: "integracao",
       funcionario: funcionarioAtual.nome,
@@ -1348,7 +1587,7 @@ function lancar(libId){
     var ja2 = acharExtra("vtSabado");
     if(ja2){ ja2.qtd = qv; ja2.vu = PRECOS_EXTRA.vtSabado; ja2.valor = qv*PRECOS_EXTRA.vtSabado; }
     else db.medicoes.push({
-      id: Date.now()+2,
+      id: novoId(),
       obraId: store.obraId,
       tipo: "vtSabado",
       funcionario: funcionarioAtual.nome,
@@ -1379,10 +1618,10 @@ function editarMed(id){
     if(isNaN(qi) || isNaN(qv) || qi<0 || qv<0) return alert("Valor inválido");
     db.medicoes = db.medicoes.filter(function(x){ return x.id!==id; });
     if(qi){
-      db.medicoes.push({id:Date.now(), obraId:store.obraId, tipo:"integracao", funcionario:m.funcionario, funcao:m.funcao, chapa:m.chapa, qtd:qi, vu:PRECOS_EXTRA.integracao, valor:qi*PRECOS_EXTRA.integracao, item:"Integração", pai:"Vales", trecho:"-"});
+      db.medicoes.push({id:novoId(), obraId:store.obraId, tipo:"integracao", funcionario:m.funcionario, funcao:m.funcao, chapa:m.chapa, qtd:qi, vu:PRECOS_EXTRA.integracao, valor:qi*PRECOS_EXTRA.integracao, item:"Integração", pai:"Vales", trecho:"-"});
     }
     if(qv){
-      db.medicoes.push({id:Date.now()+1, obraId:store.obraId, tipo:"vtSabado", funcionario:m.funcionario, funcao:m.funcao, chapa:m.chapa, qtd:qv, vu:PRECOS_EXTRA.vtSabado, valor:qv*PRECOS_EXTRA.vtSabado, item:"VT de sábado", pai:"Vales", trecho:"-"});
+      db.medicoes.push({id:novoId(), obraId:store.obraId, tipo:"vtSabado", funcionario:m.funcionario, funcao:m.funcao, chapa:m.chapa, qtd:qv, vu:PRECOS_EXTRA.vtSabado, valor:qv*PRECOS_EXTRA.vtSabado, item:"VT de sábado", pai:"Vales", trecho:"-"});
     }
     save(); render();
     return;
@@ -1402,19 +1641,11 @@ function editarMed(id){
   }
   save(); render();
 }
-async function excluirMed(id){
+function excluirMed(id){
+  if(!sbOn()) return alert("Sem conexão com a nuvem. Não dá pra excluir.");
   if(!confirm("Excluir este lançamento?")) return;
-  db.medicoes = db.medicoes.filter(function(m){ return m.id!==id; });
-  salvarDbNaObra();
-  if(sbOn()){
-    try {
-      await cloudPushStore();
-      alert("Excluído e salvo na nuvem.");
-    } catch(e){
-      alert("Erro ao salvar na nuvem: "+e.message);
-    }
-  }
-  render();
+  db.medicoes = db.medicoes.filter(function(m){ return String(m.id)!==String(id); });
+  save(); render();
 }
 
 
@@ -2527,7 +2758,7 @@ function restaurarBackup(e){
     try{
       var data = JSON.parse(r.result);
       if(!data.obras) return alert("Arquivo inválido");
-      if(!confirm("Restaurar este backup? Os dados atuais serão substituídos.")) return;
+      if(!confirm("Restaurar este backup?\n\nATENÇÃO: os dados atuais serão substituídos, TAMBÉM NA NUVEM, para todos os usuários. Lançamentos feitos depois deste backup serão apagados.")) return;
       store = data;
       localStorage.setItem(STORE_KEY, JSON.stringify(store));
       alert("Backup restaurado. Recarregando...");
@@ -2755,27 +2986,32 @@ function carregarDbDaObra(){
   if(!db.aprovacoes || !Object.keys(db.aprovacoes).length){
     if(per.libs && per.libs.__aprovacoes) db.aprovacoes = per.libs.__aprovacoes;
   }
-  paiSel = db.pais[0] ? db.pais[0].id : null;
+  var manter = paiSel;
+  paiSel = (manter!=null && db.pais.some(function(p){ return p.id===manter; })) ? manter : (db.pais[0] ? db.pais[0].id : null);
 }
 
+function normFilhoCad(f){
+  return { id:f.id, paiId:f.paiId, nome:f.nome, un:f.un, qtd:f.qtd, funcoes:f.funcoes||{}, extra:!!f.extra, ocultarImpressao:!!f.ocultarImpressao };
+}
 function salvarDbNaObra(){
   if(!store.obraId || !store.periodo) return;
   store.cadastro = store.cadastro || {};
-  store.cadastro[store.obraId] = {
-    pais: JSON.parse(JSON.stringify(db.pais||[])),
-    filhos: (db.filhos||[]).map(function(f){
-      return {id:f.id, paiId:f.paiId, nome:f.nome, un:f.un, qtd:f.qtd, funcoes:f.funcoes||{}, extra:!!f.extra};
-    })
-  };
+  var antigo = store.cadastro[store.obraId] || {};
+  var novoPais = JSON.parse(JSON.stringify(db.pais||[]));
+  var novoFilhos = (db.filhos||[]).map(normFilhoCad);
+  var antes = stableStr({ p:antigo.pais||[], f:(antigo.filhos||[]).map(normFilhoCad) });
+  var depois = stableStr({ p:novoPais, f:novoFilhos });
+  if(antes !== depois){
+    store.cadastro[store.obraId] = Object.assign({}, antigo, { pais:novoPais, filhos:novoFilhos });
+  }
   store.dados = store.dados || {};
   var libs = {};
   (db.filhos||[]).forEach(function(f){ libs[String(f.id)] = f.liberacoes||[]; });
-  libs.__aprovacoes = db.aprovacoes||{};
-  var medsLimpos = dedupMedicoes((db.medicoes||[]).filter(function(m){
+  var meds = (db.medicoes||[]).filter(function(m){
     if(m.obraId && m.obraId !== store.obraId) return false;
     return true;
-  }));
-  store.dados[chaveDados()] = { medicoes: medsLimpos, libs: libs, aprovacoes: db.aprovacoes||{} };
+  });
+  store.dados[chaveDados()] = { medicoes: meds, libs: libs, aprovacoes: JSON.parse(JSON.stringify(db.aprovacoes||{})) };
   saveStore();
 }
 
@@ -2906,6 +3142,7 @@ function renderSaldo(){
   }).join("") || '<div class="bg-white rounded-2xl border p-6 text-sm text-slate-500">Nada para mostrar.</div>';
 }
 
+if(store.obraId) carregarDbDaObra();
 aplicarAcesso();
 if(sessao){
   if(sbOn()){
